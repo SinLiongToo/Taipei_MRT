@@ -1,6 +1,9 @@
-# 台北捷運四界走 — 歡喜學台語
+# 台北捷運四界走 — 歡喜學台語 (Taipei MRT Taigi Learning WebApp)
 
-這是一個專為學習台灣話（台語 / Taigi）設計的網頁互動式交通學習工具，以台北捷運 (TRTC) 的路網結構為基礎，提供生動有趣的語音朗讀與檢定挑戰。
+這是一個專為學習台灣話（台語 / Taigi）設計的網頁互動式交通學習工具，以台北捷運 (TRTC) 的路網結構為基礎，提供生動有趣的語音朗讀、線別詞彙檢索與檢定挑戰。
+
+* 🌐 **GitHub Pages 線上直接玩**：[https://sinliongtoo.github.io/Taipei_MRT/](https://sinliongtoo.github.io/Taipei_MRT/)
+* 📦 **GitHub Repository**：[https://github.com/SinLiongToo/Taipei_MRT](https://github.com/SinLiongToo/Taipei_MRT)
 
 ---
 
@@ -13,7 +16,10 @@
    * **地圖火車動畫**：捷運車廂會沿著鐵路軌道路線動態行駛。
 
 2. **交通詞彙牆 (Vocabulary Wall)**：
-   * 收錄 15 個核心交通與捷運場景台語詞彙，提供中英台對照拼音與發音。
+   * **全路網 114 車站完整收錄**：包含 15 個核心交通與捷運場景詞彙，以及台北捷運全部 114 個車站台語發音。
+   * **依 5 大主線分組檢索**：支援依「🔴 淡水信義線」、「🔵 板南線」、「🟢 松山新店線」、「🟠 中和新蘆線」、「🟤 文湖線」色彩分類快速篩選。
+   * **即點即聽真人語音**：點擊任一卡片即可聆聽教育部審定標準發音。
+   * **📥 匯出 JSON 功能**：支援一鍵將詞彙庫、台羅拼音、英文與音檔 ID 完整匯出為 `taipei_mrt_taigi_vocab.json` 供後續教學與研究使用。
 
 3. **時間鐘點師 (Clock Trainer)**：
    * 可任意拖動指針或使用微調按鈕、預設時間，聆聽台語的「時間」與「時段」發音。
@@ -42,21 +48,14 @@
 
 ---
 
-## 🔧 音檔 ID 系統說明與修正記錄
+## 🔧 音檔 ID 與鏡像 CDN 維護記錄
 
-> **重要說明（2026-07 修正）**：本專案音檔 ID 採用 **ChhoeTaigi KipSutianDataMirror** 的 `詞目id` 編號系統（即 CDN 路徑 `imtong/sutiau/{id}(1).mp3`）。
+### 1. 詞目 ID 校正（2026-07）
 
-### 根本問題說明
+本專案音檔 ID 採用 **ChhoeTaigi KipSutianDataMirror** 的 `詞目id` 編號系統（即 CDN 路徑 `imtong/sutiau/{id}(1).mp3`）。
 
-原始版本錯誤地使用了 **萌典 API (`dict-twblg.json`) 的 `heteronyms.id`** 作為音檔代碼，例如：
-- `淡水` 萌典 id = `7546`（實為「清茶」tshing-tê 的 KipSutian ID）
-- `台北車站` 使用 `1416`（實為「外人」guā-lâng）、`1395`（實為「去」khì）
-
-兩個資料庫的 ID 編號系統完全不同，導致每個地名播放的都是錯誤的語音。
-
-### 修正方式
-
-使用自動化 Python 腳本，從 `KipSutianData.json`（官方音檔索引）下載並重建全部 114 個車站與所有語音詞彙的正確 `詞目id` 對照表。修正後的代表性對照：
+* **根本問題**：原始版本錯誤使用了萌典 API (`dict-twblg.json`) 的 `heteronyms.id`，導致播放錯誤詞彙（如「淡水」誤播為「清茶」）。
+* **修正方案**：透過自動化腳本比對官方辭典索引，全面更正 114 個站名與詞彙的正確 ID。
 
 | 車站/詞彙 | 舊（錯誤）ID | 新（正確）KipSutian 詞目id | 說明 |
 |-----------|------------|--------------------------|------|
@@ -68,18 +67,44 @@
 | 去 | 1405 | **1395** | `khì` |
 | 台北101/世貿 | 散字 | **20637**, 2, **12091**, 2, **1292**, **9043** | 臺北+一+零(龍)+一+世+貿 |
 
+### 2. CDN 版本動態同步機制（2026-10）
+
+* **斷音問題排查**：開源鏡像庫在 2026-10-19 將舊版本目錄 `20260503-2330` 更新並移除，更換為 `20261019-0109`，導致固定字串的音檔請求出現 404 錯誤而無聲音。
+* **動態同步解決方案**：
+  在 `app.js` 啟動時加入動態同步邏輯，主動抓取鏡像庫的 `manifest.json`：
+  ```javascript
+  let kipsutianVersionDir = "20261019-0109";
+  if (typeof fetch !== "undefined") {
+      fetch("https://chhoetaigi.github.io/KipSutianDataMirror/public/manifest.json")
+          .then(res => res.json())
+          .then(data => {
+              if (data && data.latest_version_dir) {
+                  kipsutianVersionDir = data.latest_version_dir;
+              }
+          })
+          .catch(err => console.warn("KipSutian manifest fetch fallback to default:", kipsutianVersionDir));
+  }
+  ```
+  即使未來鏡像庫再次隨教育部辭典發布新版本目錄，系統也會自動獲取最新路徑，從根本上避免路徑失效。
+
 ---
 
 ## 📁 檔案結構
 
 * `index.html` — 網頁主體結構。
 * `style.css` — 台北捷運風格設計系統（支援淺色/深色模式切換與玻璃擬物化風格）。
-* `app.js` — 核心運算邏輯，包含 114 個車站之經緯座標、音檔代碼與 BFS 最短路徑邏輯。
+* `app.js` — 核心運算邏輯，包含 114 個車站資料、音檔代碼、BFS 最短路徑邏輯與 CDN 動態同步。
 * `compile.py` — 自動編譯腳本，可將 HTML/CSS/JS 打包成單一檔案。
+* `index_single.html` — 編譯後的單一 HTML 檔案，包含所有 inline CSS/JS。
+* `blogger_base64_embed.html` — 提供部落格 iframe 嵌入的 Base64 整合碼。
 
 ---
 
 ## 🚀 開始使用與部署
+
+### 線上體驗
+直接開啟 GitHub Pages 網址：
+👉 **[https://sinliongtoo.github.io/Taipei_MRT/](https://sinliongtoo.github.io/Taipei_MRT/)**
 
 ### 本地運行
 1. 直接在瀏覽器中打開 `index.html` 即可運行！
@@ -96,4 +121,3 @@ python compile.py
 ```
 * `index_single.html`：整合了所有樣式與邏輯的單一 HTML，適合離線使用與傳送。
 * `blogger_base64_embed.html`：產生 base64 編碼的 iframe 程式碼，可直接貼入 Blogger、WordPress 等部落格平台中嵌入展示。
-
