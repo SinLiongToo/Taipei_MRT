@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台北捷運四界走 — 歡喜學台語 (TRTC Hoé-chhia 冒險!)</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300..700&family=Noto+Sans+TC:wght@100..900&family=Outfit:wght@100..900&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Header Section -->
+    <header>
+        <div class="logo-section">
+            <h1 id="ui-title"><i class="fa-solid fa-train-subway"></i> 台北捷運四界走</h1>
+            <small id="ui-subtitle">歡喜學台語 / Fun Taiwanese TRTC Adventure</small>
+        </div>
+        <div class="header-controls">
+            <!-- Speech Engine Badge -->
+            <span id="speech-engine-badge" class="speech-badge badge-google">🔊 實體台語 (教育部)</span>
+            <!-- Speech Rate Slider -->
+            <div class="rate-controller" title="調整台語語速 (Speech Speed)">
+                <i class="fa-solid fa-gauge-high"></i>
+                <input type="range" id="speech-rate" min="0.5" max="1.5" step="0.1" value="1.0" onchange="updateSpeechRate(this.value)" oninput="updateSpeechRateLabel(this.value)" aria-label="Adjust speech rate">
+                <span id="speech-rate-label" class="rate-label">1.0x</span>
+            </div>
+            <!-- Dark Mode Toggle -->
+            <button id="theme-toggle-btn" class="btn-icon" onclick="toggleTheme()" aria-label="Toggle Theme" title="切換深色模式">
+                <i class="fa-solid fa-moon"></i>
+            </button>
+            <!-- Language Toggle -->
+            <button id="lang-toggle-btn" class="lang-btn" onclick="toggleLanguage()">
+                <i class="fa-solid fa-language"></i> <span id="lang-toggle-text">Language: 台語</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs" aria-label="Main Navigation">
+        <button id="tab-adventure-btn" class="tab-trigger active" onclick="switchTab('adventure')">
+            <i class="fa-solid fa-map-location-dot"></i>
+            <span id="ui-tab-adventure">購票大冒險</span>
+        </button>
+        <button id="tab-vocab-btn" class="tab-trigger" onclick="switchTab('vocab')">
+            <i class="fa-solid fa-book-open"></i>
+            <span id="ui-tab-vocab">交通詞彙牆</span>
+        </button>
+        <button id="tab-time-btn" class="tab-trigger" onclick="switchTab('time')">
+            <i class="fa-solid fa-clock"></i>
+            <span id="ui-tab-time">時間鐘點師</span>
+        </button>
+        <button id="tab-quiz-btn" class="tab-trigger" onclick="switchTab('quiz')">
+            <i class="fa-solid fa-gamepad"></i>
+            <span id="ui-tab-quiz">台語大檢定</span>
+        </button>
+        <button id="tab-stamps-btn" class="tab-trigger" onclick="switchTab('stamps')">
+            <i class="fa-solid fa-stamp"></i>
+            <span id="ui-tab-stamps">我的集章冊</span>
+        </button>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main style="width: 100%; max-width: 1200px; display: flex; flex-direction: column; gap: 20px;">
+        <!-- Tab 1: Adventure & Booking -->
+        <section id="panel-adventure" class="tab-panel adventure-grid active">
+            <!-- Interactive Ticket Booth Card -->
+            <div class="card">
+                <h2 class="card-title" id="ui-booth-title"><i class="fa-solid fa-ticket"></i> 售票亭 Ticket Booth</h2>
+                
+                <div class="form-group">
+                    <label for="start-station" id="ui-label-from">起點站 From:</label>
+                    <select id="start-station" onchange="calculateJourney()"></select>
+                </div>
+
+                <div class="form-group">
+                    <label for="end-station" id="ui-label-to">終點站 To:</label>
+                    <select id="end-station" onchange="calculateJourney()"></select>
+                </div>
+
+                <div class="form-group">
+                    <label for="train-class" id="ui-label-class">乘車種類 Class:</label>
+                    <select id="train-class" onchange="calculateJourney()">
+                        <option value="mrt" selected>台北捷運 (TRTC Metro) - 起步 NT$20</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label id="ui-label-passengers">張數 Tickets:</label>
+                    <div class="ticket-stepper">
+                        <button id="btn-dec-passengers" class="stepper-btn" onclick="changePassengers(-1)" aria-label="Decrease tickets">-</button>
+                        <span id="passenger-count" class="stepper-value">1</span>
+                        <button id="btn-inc-passengers" class="stepper-btn" onclick="changePassengers(1)" aria-label="Increase tickets">+</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="departure-time" id="ui-label-dep-time">發車時間 Departure:</label>
+                    <select id="departure-time" onchange="calculateJourney()">
+                        <option value="08:00">早上 08:00 (tsá-khí peh tiám)</option>
+                        <option value="10:30">早上 10:30 (tsá-khí tsa̍p tiám puàn)</option>
+                        <option value="12:15">中午 12:15 (ē-po͘ tsa̍p-jī tiám tsa̍p-gōo hun)</option>
+                        <option value="15:30" selected>下午 15:30 (ē-po͘ sann tiám puàn)</option>
+                        <option value="18:45">晚上 18:45 (am-sî la̍k tiám sì-tsa̍p-gōo hun)</option>
+                        <option value="20:00">晚上 20:00 (am-sî peh tiám)</option>
+                    </select>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid var(--card-border); margin: 20px 0;">
+
+                <!-- Results display -->
+                <div class="info-display">
+                    <div class="info-row">
+                        <span class="info-label" id="ui-info-direction">行車路線 Route Line:</span>
+                        <span class="info-value"><span id="info-direction">-</span></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label" id="ui-info-duration">乘車時間 Duration:</span>
+                        <span class="info-value"><span id="info-duration">-</span></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label" id="ui-info-cost">總票價 Total Fare:</span>
+                        <span class="info-value"><span id="info-cost">-</span></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label" id="ui-info-platform">候車月台 Platform:</span>
+                        <span class="info-value"><span id="info-platform">-</span></span>
+                    </div>
+                </div>
+
+                <!-- CTA Audio buttons -->
+                <button id="play-journey-btn" class="btn-cta" onclick="playFullJourneyAudio()" disabled>
+                    <i class="fa-solid fa-volume-high animate-bounce"></i> <span id="ui-btn-play-journey">播放台語購票語音</span>
+                </button>
+
+                <!-- Sentence breakdown display -->
+                <div id="journey-sentence-box" class="sentence-display">
+                    <p class="sentence-zh" id="journey-sentence-zh"></p>
+                    <p class="sentence-tw" id="journey-sentence-tw"></p>
+                </div>
+            </div>
+
+            <!-- SVG TRTC Map Card -->
+            <div class="card map-card">
+                <h2 class="card-title" id="ui-map-title"><i class="fa-solid fa-compass"></i> 台北捷運路線圖 Map</h2>
+                
+                <div class="map-svg-container" id="map-container">
+                    <!-- Train marker moving along path -->
+                    <div id="train-marker" class="train-marker">
+                        <svg class="train-icon-svg" viewBox="0 0 100 100">
+                            <!-- Taipei Metro train cabin (Silver / Blue stripe) -->
+                            <rect x="10" y="25" width="80" height="46" rx="8" fill="#BDC3C7" stroke="#34495E" stroke-width="4"/>
+                            <!-- Blue stripe -->
+                            <rect x="10" y="55" width="80" height="8" fill="#0070BD"/>
+                            <rect x="15" y="31" width="20" height="18" rx="2" fill="#EBF4F6"/>
+                            <rect x="40" y="31" width="20" height="18" rx="2" fill="#EBF4F6"/>
+                            <rect x="65" y="31" width="20" height="18" rx="2" fill="#EBF4F6"/>
+                            <circle cx="30" cy="78" r="9" fill="#2D3436" stroke="#FFFFFF" stroke-width="3"/>
+                            <circle cx="70" cy="78" r="9" fill="#2D3436" stroke="#FFFFFF" stroke-width="3"/>
+                            <!-- Light/Glow -->
+                            <path d="M 5 48 L 0 45 L 0 51 Z" fill="#FFEAA7" />
+                        </svg>
+                    </div>
+
+                    <!-- SVG Map elements drawn dynamically in app.js -->
+                    <svg id="svg-map" width="700" height="600" viewBox="0 0 700 600">
+                        <!-- Tamsui River winding path -->
+                        <path class="harbor-outline" d="M 0 500 C 120 480, 180 320, 160 270 C 140 220, 100 150, 120 80 L 100 0 Z" fill="none" stroke="rgba(9, 132, 227, 0.08)" stroke-width="30" />
+                        <path class="love-river" d="M 0 500 C 120 480, 180 320, 160 270 C 140 220, 100 150, 120 80 L 100 0" fill="none" stroke="rgba(9, 132, 227, 0.12)" stroke-width="6" />
+                        
+                        <!-- Keelung River winding path -->
+                        <path class="love-river" d="M 155 240 C 250 200, 350 180, 400 140 C 450 100, 520 120, 580 180 C 620 220, 700 240, 700 240" fill="none" stroke="rgba(9, 132, 227, 0.12)" stroke-width="6" />
+
+                        <!-- Intersecting metro paths -->
+                        <path id="svg-rail-track-red" class="rail-track red-line" d="" />
+                        <path id="svg-rail-track-red-dashed" class="rail-track-dashed" d="" />
+                        
+                        <path id="svg-rail-track-blue" class="rail-track blue-line" d="" />
+                        <path id="svg-rail-track-blue-dashed" class="rail-track-dashed" d="" />
+
+                        <path id="svg-rail-track-green" class="rail-track green-line" d="" />
+                        <path id="svg-rail-track-green-dashed" class="rail-track-dashed" d="" />
+
+                        <path id="svg-rail-track-orange" class="rail-track orange-line" d="" />
+                        <path id="svg-rail-track-orange-dashed" class="rail-track-dashed" d="" />
+
+                        <path id="svg-rail-track-brown" class="rail-track brown-line" d="" />
+                        <path id="svg-rail-track-brown-dashed" class="rail-track-dashed" d="" />
+                        
+                        <!-- Active journey highlight overlay -->
+                        <path id="svg-rail-active-path" class="rail-active-path" d="" />
+
+                        <!-- Group for station points -->
+                        <g id="svg-stations-group"></g>
+                    </svg>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 2: Vocabulary Wall -->
+        <section id="panel-vocab" class="tab-panel card">
+            <h2 class="card-title" id="ui-vocab-title"><i class="fa-solid fa-book-open"></i> 交通台語詞彙牆 Vocabulary</h2>
+            <!-- Filter buttons row 1: general -->
+            <div class="vocab-filter">
+                <div class="vocab-filter-row">
+                    <button class="filter-btn active" id="btn-filter-all">🗂️ 全部 All</button>
+                    <button class="filter-btn" id="btn-filter-vehicles">🚗 交通工具</button>
+                    <button class="filter-btn" id="btn-filter-stations">🚉 所有站名</button>
+                </div>
+                <!-- Filter buttons row 2: lines -->
+                <div class="vocab-filter-row vocab-filter-lines">
+                    <button class="filter-btn filter-line filter-red"    id="btn-filter-red">🔴 淡水信義</button>
+                    <button class="filter-btn filter-line filter-blue"   id="btn-filter-blue">🔵 板南線</button>
+                    <button class="filter-btn filter-line filter-green"  id="btn-filter-green">🟢 松山新店</button>
+                    <button class="filter-btn filter-line filter-orange" id="btn-filter-orange">🟠 中和新蘆</button>
+                    <button class="filter-btn filter-line filter-brown"  id="btn-filter-brown">🟤 文湖線</button>
+                </div>
+                <!-- Export button -->
+                <div class="vocab-filter-row vocab-filter-export">
+                    <button class="filter-btn filter-export-btn" id="btn-export-vocab">
+                        <i class="fa-solid fa-download"></i> 匯出 JSON
+                    </button>
+                </div>
+            </div>
+            <!-- Vocabulary Grid -->
+            <div class="vocab-grid" id="vocab-container"></div>
+        </section>
+
+
+        <!-- Tab 3: Interactive Time / Clock Trainer -->
+        <section id="panel-time" class="tab-panel two-col-layout">
+            <!-- Left: Interactive Clock -->
+            <div class="card clock-container">
+                <h2 class="card-title" id="ui-clock-title"><i class="fa-solid fa-circle-notch"></i> 撥撥看時鐘 Clock Trainer</h2>
+                
+                <div class="interactive-clock" id="interactive-clock">
+                    <div class="clock-face">
+                        <div class="clock-number clock-12">12</div>
+                        <div class="clock-number clock-3">3</div>
+                        <div class="clock-number clock-6">6</div>
+                        <div class="clock-number clock-9">9</div>
+                        <div class="clock-center"></div>
+                        <!-- Clock hands -->
+                        <div id="clock-hour-hand" class="clock-hand hour"></div>
+                        <div id="clock-min-hand" class="clock-hand minute"></div>
+                    </div>
+                </div>
+
+                <div class="clock-setter-panel">
+                    <div class="time-readout" id="clock-time-digital">15:30</div>
+                    <div class="time-readout-pinyin" id="clock-time-tw">下午三點半<br><small>ē-po͘ sann tiám puàn</small></div>
+                </div>
+            </div>
+
+            <!-- Right: Time Learning & Control -->
+            <div class="card">
+                <h2 class="card-title" id="ui-time-learn-title"><i class="fa-solid fa-graduation-cap"></i> 時間台語發音教室</h2>
+                
+                <div class="form-group">
+                    <label id="ui-label-adjust-time">微調時間 Adjust Time:</label>
+                    <div class="clock-controls">
+                        <button class="btn-ctrl" id="btn-clock-dec-1h" onclick="adjustClockTime(-60)" title="減少一小時"><i class="fa-solid fa-circle-minus"></i> -1h</button>
+                        <button class="btn-ctrl" id="btn-clock-dec-15m" onclick="adjustClockTime(-15)" title="減少十五分"><i class="fa-solid fa-minus"></i> -15m</button>
+                        <button class="btn-ctrl" id="btn-clock-inc-15m" onclick="adjustClockTime(15)" title="增加十五分"><i class="fa-solid fa-plus"></i> +15m</button>
+                        <button class="btn-ctrl" id="btn-clock-inc-1h" onclick="adjustClockTime(60)" title="增加一小時"><i class="fa-solid fa-circle-plus"></i> +1h</button>
+                    </div>
+                </div>
+
+                <!-- Fast preset options -->
+                <div class="form-group" style="margin-top: 25px;">
+                    <label id="ui-label-preset-time">常見列車發車時間 Presets:</label>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px;">
+                        <button class="btn-ctrl" id="btn-clock-preset-8-0" onclick="setClockTime(8, 0)">08:00 (八點整)</button>
+                        <button class="btn-ctrl" id="btn-clock-preset-10-30" onclick="setClockTime(10, 30)">10:30 (十點半)</button>
+                        <button class="btn-ctrl" id="btn-clock-preset-12-15" onclick="setClockTime(12, 15)">12:15 (十二點十五分)</button>
+                        <button class="btn-ctrl" id="btn-clock-preset-15-30" onclick="setClockTime(15, 30)">15:30 (三點半)</button>
+                        <button class="btn-ctrl" id="btn-clock-preset-17-45" onclick="setClockTime(17, 45)">17:45 (五點四十五分)</button>
+                        <button class="btn-ctrl" id="btn-clock-preset-20-0" onclick="setClockTime(20, 0)">20:00 (八點整)</button>
+                    </div>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid var(--card-border); margin: 25px 0;">
+
+                <button class="btn-cta" id="play-clock-btn" onclick="playClockAudio()">
+                    <i class="fa-solid fa-volume-high animate-bounce"></i> <span id="ui-btn-play-clock">播放台語時間發音</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Tab 4: Challenges & Quiz -->
+        <section id="panel-quiz" class="tab-panel card">
+            <h2 class="card-title" id="ui-quiz-title"><i class="fa-solid fa-gamepad"></i> 台語大檢定 Challenge Mode</h2>
+
+            <!-- Welcome/Select Mode panel -->
+            <div id="quiz-welcome-panel" class="quiz-welcome">
+                <span class="welcome-emoji">🎫</span>
+                <h3 style="font-size: 1.6rem; font-weight: 800; margin-bottom: 10px;" id="ui-quiz-welcome-title">準備接受台語大挑戰了嗎？</h3>
+                <p style="color: var(--text-light); line-height: 1.6;" id="ui-quiz-welcome-desc">
+                    我們提供兩大交通檢定關卡！點選按鈕後將隨機播放 10 題台語語音，在時限內選出正確答案。
+                    答對 8 題以上即可解鎖該捷運站的精美地標紀念印章喔！
+                </p>
+                <div class="quiz-select-btns">
+                    <button class="btn-quiz-select primary" id="btn-quiz-seller" onclick="startQuiz('seller')">
+                        <i class="fa-solid fa-user-tie"></i>
+                        <span id="ui-quiz-seller-name">售票員聽力挑戰</span>
+                        <small style="font-weight: 500; font-size: 0.75rem; opacity: 0.8;">目的地與車票數量聽力</small>
+                    </button>
+                    <button class="btn-quiz-select" id="btn-quiz-time" onclick="startQuiz('time')">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                        <span id="ui-quiz-time-name">發車時刻聽力挑戰</span>
+                        <small style="font-weight: 500; font-size: 0.75rem; opacity: 0.8;">捷運發車與時間聽力</small>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Active Quiz panel -->
+            <div id="quiz-game-panel" class="quiz-container">
+                <div class="quiz-header">
+                    <div class="quiz-stat"><i class="fa-solid fa-circle-question"></i> <span id="quiz-progress-text">問題 1 / 10</span></div>
+                    <div class="quiz-stat" id="quiz-score-display"><i class="fa-solid fa-star" style="color: var(--accent);"></i> 分數: 0</div>
+                    <div class="quiz-stat" id="quiz-timer-display" style="color: var(--primary);"><i class="fa-solid fa-hourglass-half"></i> 剩餘: 20s</div>
+                </div>
+
+                <!-- Timer progress bar -->
+                <div class="timer-bar-container">
+                    <div id="quiz-timer-bar" class="timer-bar"></div>
+                </div>
+
+                <div class="quiz-body">
+                    <!-- Play voice button -->
+                    <div class="audio-box">
+                        <button class="btn-play-audio" id="quiz-audio-play-btn" onclick="playQuizQuestionAudio()" aria-label="Play question audio">
+                            <i class="fa-solid fa-volume-high"></i>
+                        </button>
+                    </div>
+
+                    <p class="quiz-question-txt" id="quiz-question-prompt">請點擊上方按鈕播放題目，並選出正確答案：</p>
+
+                    <!-- Multiple choice options -->
+                    <div class="quiz-options" id="quiz-options-container">
+                        <button class="option-btn">選項一</button>
+                        <button class="option-btn">選項二</button>
+                        <button class="option-btn">選項三</button>
+                        <button class="option-btn">選項四</button>
+                    </div>
+
+                    <div class="quiz-feedback" id="quiz-feedback-text"></div>
+                </div>
+            </div>
+
+            <!-- Quiz Result panel -->
+            <div id="quiz-result-panel" class="quiz-result">
+                <div class="result-header" id="quiz-result-title">挑戰結束！</div>
+                <div class="result-score" id="quiz-result-score">您的得分：8 / 10 題</div>
+                
+                <div class="result-rewards" id="quiz-rewards-box">
+                    <p class="stamp-unlock-txt" id="quiz-unlock-stamp-label"><i class="fa-solid fa-gift"></i> 恭喜獲得新車站紀念章！</p>
+                    <div class="unlocked-stamp-item" id="quiz-unlocked-stamp-display">
+                        <!-- Filled in dynamically -->
+                    </div>
+                </div>
+
+                <button class="btn-cta" id="quiz-retry-btn" onclick="resetQuizInterface()">
+                    <i class="fa-solid fa-rotate-left"></i> <span id="ui-btn-retry">返回檢定選單</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Tab 5: Stamps Booklet -->
+        <section id="panel-stamps" class="tab-panel card">
+            <h2 class="card-title" id="ui-stamps-title"><i class="fa-solid fa-stamp"></i> 我的捷運集章冊 Stamp Album</h2>
+            <p style="color: var(--text-light); margin-bottom: 25px;" id="ui-stamps-desc">
+                在「台語大檢定」中答對 8 題以上即可隨機獲得一個捷運站的限定紀念章。收集越多，代表你已經搭著捷運玩遍了整個台北！
+            </p>
+            <!-- Grid of stamps -->
+            <div class="stamp-grid" id="stamps-container"></div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <p>© 2026 台北捷運四界走 — 台語交通互動教學網頁. 台北捷運交叉路網版.</p>
+        <p style="font-size: 0.75rem; margin-top: 5px; font-weight: 700;">@史秀里冊房 Tō͘ Sìn-liông 製作 2026</p>
+        <p style="font-size: 0.75rem; margin-top: 5px;">本系統採用中華民國教育部《臺灣台語常用詞辭典》官方真人發音音訊與 Web Speech API 擬真備援技術作為語音引擎.</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

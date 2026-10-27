@@ -1,0 +1,2284 @@
+// ==========================================
+// 0. KipSutian 語音鏡像 CDN 版本管理 (動態同步)
+// ==========================================
+let kipsutianVersionDir = "20261019-0109";
+if (typeof fetch !== "undefined") {
+    fetch("https://chhoetaigi.github.io/KipSutianDataMirror/public/manifest.json")
+        .then(res => res.json())
+        .then(data => {
+            if (data && data.latest_version_dir) {
+                kipsutianVersionDir = data.latest_version_dir;
+            }
+        })
+        .catch(err => {
+            console.warn("KipSutian manifest fetch fallback to default:", kipsutianVersionDir);
+        });
+}
+
+// ==========================================
+// 1. 台北捷運車站資料庫 (Taipei MRT Stations)
+// ==========================================
+const stations = [
+    { id: "R28", nameZH: "淡水", nameEN: "Tamsui", poj: "Tām-tsuí", cx: 100, cy: 50, line: "Red", seq: 28, stamp: "🌅", audio_id: ["7521"] },
+    { id: "R27", nameZH: "紅樹林", nameEN: "Hongshulin", poj: "Âng-siū-nâ", cx: 113, cy: 60, line: "Red", seq: 27, stamp: "🌲", audio_id: ["21285"] },
+    { id: "R26", nameZH: "竹圍", nameEN: "Zhuwei", poj: "Tek-uî", cx: 127, cy: 70, line: "Red", seq: 26, stamp: "🎋", audio_id: ["21286"] },
+    { id: "R25", nameZH: "關渡", nameEN: "Guandu", poj: "Kan-tāu", cx: 140, cy: 80, line: "Red", seq: 25, stamp: "🐦", audio_id: ["21287"] },
+    { id: "R24", nameZH: "忠義", nameEN: "Zhongyi", poj: "Tiong-gī", cx: 153, cy: 93, line: "Red", seq: 24, stamp: "⛪", audio_id: ["21288"] },
+    { id: "R23", nameZH: "復興崗", nameEN: "Fuxinggang", poj: "Ho̍k-hing-káng", cx: 167, cy: 107, line: "Red", seq: 23, stamp: "⛰️", audio_id: ["21289"] },
+    { id: "R22", nameZH: "北投", nameEN: "Beitou", poj: "Pak-tâu", cx: 180, cy: 120, line: "Red", seq: 22, stamp: "♨️", audio_id: ["21290"] },
+    { id: "R21", nameZH: "奇岩", nameEN: "Qiyan", poj: "Kî-gâm", cx: 190, cy: 130, line: "Red", seq: 21, stamp: "🪨", audio_id: ["21291"] },
+    { id: "R20", nameZH: "唭哩岸", nameEN: "Qilian", poj: "Kî-lī-ān", cx: 200, cy: 140, line: "Red", seq: 20, stamp: "🌾", audio_id: ["21292"] },
+    { id: "R19", nameZH: "石牌", nameEN: "Shipai", poj: "Tsio̍h-pâi", cx: 210, cy: 150, line: "Red", seq: 19, stamp: "🪦", audio_id: ["1961"] },
+    { id: "R18", nameZH: "明德", nameEN: "Mingde", poj: "Bîng-tik", cx: 220, cy: 160, line: "Red", seq: 18, stamp: "🏫", audio_id: ["21294"] },
+    { id: "R17", nameZH: "芝山", nameEN: "Zhishan", poj: "Tsi-soaⁿ", cx: 230, cy: 170, line: "Red", seq: 17, stamp: "🌲", audio_id: ["21295"] },
+    { id: "R16", nameZH: "士林", nameEN: "Shilin", poj: "Sū-lîm", cx: 240, cy: 180, line: "Red", seq: 16, stamp: "🍎", audio_id: ["21296"] },
+    { id: "R15", nameZH: "劍潭", nameEN: "Jiantan", poj: "Kiàm-thâm", cx: 270, cy: 190, line: "Red", seq: 15, stamp: "🎪", audio_id: ["21297"] },
+    { id: "R14", nameZH: "圓山", nameEN: "Yuanshan", poj: "Îⁿ-soaⁿ", cx: 300, cy: 200, line: "Red", seq: 14, stamp: "🏛️", audio_id: ["21298"] },
+    { id: "R13", nameZH: "民權西路", nameEN: "Minquan W. Rd.", poj: "Bîn-khuân Se-lōo", cx: 300, cy: 230, line: "Red", seq: 13, stamp: "🚦", audio_id: ["21299"] },
+    { id: "R12", nameZH: "雙連", nameEN: "Shuanglian", poj: "Siang-liân", cx: 300, cy: 245, line: "Red", seq: 12, stamp: "🌊", audio_id: ["21300"] },
+    { id: "R11", nameZH: "中山", nameEN: "Zhongshan", poj: "Tiong-san", cx: 300, cy: 260, line: "Red", seq: 11, stamp: "🛍️", audio_id: ["21301"] },
+    { id: "R10", nameZH: "台北車站", nameEN: "Taipei Main Station", poj: "Tâi-pak Chhia-chām", cx: 300, cy: 300, line: "Red", seq: 10, stamp: "🚉", audio_id: ["21302"] },
+    { id: "R09", nameZH: "台大醫院", nameEN: "NTU Hospital", poj: "Tâi-tāi I-īⁿ", cx: 300, cy: 330, line: "Red", seq: 9, stamp: "🏥", audio_id: ["21303"] },
+    { id: "R08", nameZH: "中正紀念堂", nameEN: "C.K.S. Memorial Hall", poj: "Tiong-tsìng Kì-liām-tông", cx: 300, cy: 360, line: "Red", seq: 8, stamp: "🏛️", audio_id: ["21304"] },
+    { id: "R07", nameZH: "東門", nameEN: "Dongmen", poj: "Tang-mn̂g", cx: 360, cy: 360, line: "Red", seq: 7, stamp: "🥟", audio_id: ["21405"] },
+    { id: "G06", nameZH: "大安森林公園", nameEN: "Daan Park", poj: "Tāi-an Sim-lîm Kong-hn̂g", cx: 395, cy: 360, line: "Red", seq: 6, stamp: "🌳", audio_id: ["27679"] },
+    { id: "R05", nameZH: "大安", nameEN: "Da'an", poj: "Tāi-an", cx: 430, cy: 360, line: "Red", seq: 5, stamp: "🌳", audio_id: ["21276"] },
+    { id: "R04", nameZH: "信義安和", nameEN: "Xinyi Anhe", poj: "Sìn-gī An-hô", cx: 465, cy: 360, line: "Red", seq: 4, stamp: "🍲", audio_id: ["27681"] },
+    { id: "R03", nameZH: "台北101/世貿", nameEN: "Taipei 101/WTC", poj: "Tâi-pak It-lîng-it Sè-bāu", cx: 500, cy: 360, line: "Red", seq: 3, stamp: "🗼", audio_id: ["20637", "2", "12091", "2", "1292", "9043"] },
+    { id: "R02", nameZH: "象山", nameEN: "Xiangshan", poj: "Chhiūⁿ-soaⁿ", cx: 550, cy: 360, line: "Red", seq: 2, stamp: "🐘", audio_id: ["27677"] },
+    { id: "BL01", nameZH: "頂埔", nameEN: "Dingpu", poj: "Tíng-poo", cx: 40, cy: 520, line: "Blue", seq: 1, stamp: "🏭", audio_id: ["20768"] },
+    { id: "BL02", nameZH: "永寧", nameEN: "Yongning", poj: "Íng-nîng", cx: 50, cy: 500, line: "Blue", seq: 2, stamp: "🛕", audio_id: ["21337"] },
+    { id: "BL03", nameZH: "土城", nameEN: "Tucheng", poj: "Thôo-siânn", cx: 60, cy: 480, line: "Blue", seq: 3, stamp: "🏰", audio_id: ["21336"] },
+    { id: "BL04", nameZH: "海山", nameEN: "Haishan", poj: "Hái-soaⁿ", cx: 70, cy: 460, line: "Blue", seq: 4, stamp: "🌊", audio_id: ["21335"] },
+    { id: "BL05", nameZH: "亞東醫院", nameEN: "Far Eastern Hospital", poj: "À-tong I-īⁿ", cx: 80, cy: 440, line: "Blue", seq: 5, stamp: "🏥", audio_id: ["21334"] },
+    { id: "BL06", nameZH: "府中", nameEN: "Fuzhong", poj: "Hú-tiong", cx: 90, cy: 420, line: "Blue", seq: 6, stamp: "🏮", audio_id: ["21333"] },
+    { id: "BL07", nameZH: "板橋", nameEN: "Banqiao", poj: "Pán-kiô", cx: 100, cy: 400, line: "Blue", seq: 7, stamp: "🌉", audio_id: ["20639"] },
+    { id: "BL08", nameZH: "新埔", nameEN: "Xinpu", poj: "Sin-poo", cx: 150, cy: 370, line: "Blue", seq: 8, stamp: "🌾", audio_id: ["20713"] },
+    { id: "BL09", nameZH: "江子翠", nameEN: "Jiangzicui", poj: "Kang-tsí-tshuī", cx: 175, cy: 350, line: "Blue", seq: 9, stamp: "🐦", audio_id: ["21330"] },
+    { id: "BL10", nameZH: "龍山寺", nameEN: "Longshan Temple", poj: "Liông-san-sī", cx: 200, cy: 330, line: "Blue", seq: 10, stamp: "🛕", audio_id: ["21329"] },
+    { id: "BL11", nameZH: "西門", nameEN: "Ximen", poj: "Se-mn̂g", cx: 250, cy: 300, line: "Blue", seq: 11, stamp: "🎭", audio_id: ["21328"] },
+    { id: "BL12", nameZH: "台北車站", nameEN: "Taipei Main Station", poj: "Tâi-pak Chhia-chām", cx: 300, cy: 300, line: "Blue", seq: 12, stamp: "🚉", audio_id: ["21302"] },
+    { id: "BL13", nameZH: "善導寺", nameEN: "Shandao Temple", poj: "Siān-tō-sī", cx: 330, cy: 300, line: "Blue", seq: 13, stamp: "🛕", audio_id: ["21326"] },
+    { id: "BL14", nameZH: "忠孝新生", nameEN: "Zhongxiao Xinsheng", poj: "Tiong-hàu Sin-sing", cx: 360, cy: 300, line: "Blue", seq: 14, stamp: "🏫", audio_id: ["21404"] },
+    { id: "BL15", nameZH: "忠孝復興", nameEN: "Zhongxiao Fuxing", poj: "Tiong-hàu Ho̍k-hing", cx: 430, cy: 300, line: "Blue", seq: 15, stamp: "🛍️", audio_id: ["21275"] },
+    { id: "BL16", nameZH: "忠孝敦化", nameEN: "Zhongxiao Dunhua", poj: "Tiong-hàu Tun-huà", cx: 453, cy: 300, line: "Blue", seq: 16, stamp: "🛍️", audio_id: ["21323"] },
+    { id: "BL17", nameZH: "國父紀念館", nameEN: "Sun Yat-Sen Memorial Hall", poj: "Kok-hū Kì-liām-kuán", cx: 476, cy: 300, line: "Blue", seq: 17, stamp: "🏛️", audio_id: ["21322"] },
+    { id: "BL18", nameZH: "市政府", nameEN: "Taipei City Hall", poj: "Tshī-tsìng-hú", cx: 500, cy: 300, line: "Blue", seq: 18, stamp: "🏢", audio_id: ["21321"] },
+    { id: "BL19", nameZH: "永春", nameEN: "Yongchun", poj: "Íng-tshun", cx: 515, cy: 300, line: "Blue", seq: 19, stamp: "🌸", audio_id: ["21320"] },
+    { id: "BL20", nameZH: "後山埤", nameEN: "Houshanpi", poj: "Āu-soaⁿ-phi", cx: 530, cy: 300, line: "Blue", seq: 20, stamp: "🏞️", audio_id: ["21319"] },
+    { id: "BL21", nameZH: "昆陽", nameEN: "Kunyang", poj: "Khun-iông", cx: 545, cy: 300, line: "Blue", seq: 21, stamp: "🌅", audio_id: ["21318"] },
+    { id: "BL22", nameZH: "南港", nameEN: "Nangang", poj: "Lâm-káng", cx: 560, cy: 300, line: "Blue", seq: 22, stamp: "💾", audio_id: ["21389"] },
+    { id: "BL23", nameZH: "南港展覽館", nameEN: "Nangang Exhibition", poj: "Lâm-káng Tián-lám-kuán", cx: 600, cy: 300, line: "Blue", seq: 23, stamp: "🏟️", audio_id: ["21390"] },
+    { id: "G01", nameZH: "新店", nameEN: "Xindian", poj: "Sin-tiàm", cx: 300, cy: 550, line: "Green", seq: 1, stamp: "⛵", audio_id: ["21313"] },
+    { id: "G02", nameZH: "新店區公所", nameEN: "Xindian District Office", poj: "Sin-tiàm Khiu Kong-sóo", cx: 300, cy: 532, line: "Green", seq: 2, stamp: "🏢", audio_id: ["21312"] },
+    { id: "G03", nameZH: "七張", nameEN: "Qizhang", poj: "Tshit-tiunn", cx: 300, cy: 515, line: "Green", seq: 3, stamp: "7️⃣", audio_id: ["21311"] },
+    { id: "G04", nameZH: "大坪林", nameEN: "Dapinglin", poj: "Tuā-pînn-lîm", cx: 300, cy: 498, line: "Green", seq: 4, stamp: "🌲", audio_id: ["21310"] },
+    { id: "G05", nameZH: "景美", nameEN: "Jingmei", poj: "Kíng-bí", cx: 300, cy: 480, line: "Green", seq: 5, stamp: "🏞️", audio_id: ["20788"] },
+    { id: "G06", nameZH: "萬隆", nameEN: "Wanlong", poj: "Bān-liông", cx: 290, cy: 460, line: "Green", seq: 6, stamp: "🌊", audio_id: ["21308"] },
+    { id: "G07", nameZH: "公館", nameEN: "Gongguan", poj: "Kong-koán", cx: 280, cy: 445, line: "Green", seq: 7, stamp: "🏫", audio_id: ["764"] },
+    { id: "G08", nameZH: "台電大樓", nameEN: "Taipower Building", poj: "Tâi-tiān Tāi-lâu", cx: 265, cy: 432, line: "Green", seq: 8, stamp: "⚡", audio_id: ["21306"] },
+    { id: "G09", nameZH: "古亭", nameEN: "Guting", poj: "Kóo-tîng", cx: 250, cy: 420, line: "Green", seq: 9, stamp: "🛕", audio_id: ["21305"] },
+    { id: "G10", nameZH: "中正紀念堂", nameEN: "C.K.S. Memorial Hall", poj: "Tiong-tsìng Kì-liām-tông", cx: 300, cy: 360, line: "Green", seq: 10, stamp: "🏛️", audio_id: ["21304"] },
+    { id: "G12", nameZH: "小南門", nameEN: "Xiaonanmen", poj: "Sió-lâm-mn̂g", cx: 275, cy: 330, line: "Green", seq: 12, stamp: "⛩️", audio_id: ["21338"] },
+    { id: "G11", nameZH: "西門", nameEN: "Ximen", poj: "Se-mn̂g", cx: 250, cy: 300, line: "Green", seq: 11, stamp: "🎭", audio_id: ["21328"] },
+    { id: "G13", nameZH: "北門", nameEN: "Beimen", poj: "Pak-mn̂g", cx: 250, cy: 260, line: "Green", seq: 13, stamp: "🧱", audio_id: ["20862"] },
+    { id: "G14", nameZH: "中山", nameEN: "Zhongshan", poj: "Tiong-san", cx: 300, cy: 260, line: "Green", seq: 14, stamp: "🛍️", audio_id: ["21301"] },
+    { id: "G15", nameZH: "松江南京", nameEN: "Songjiang Nanjing", poj: "Siông-kang Lâm-kian", cx: 360, cy: 260, line: "Green", seq: 15, stamp: "💼", audio_id: ["21403"] },
+    { id: "G16", nameZH: "南京復興", nameEN: "Nanjing Fuxing", poj: "Lâm-kian Ho̍k-hing", cx: 430, cy: 260, line: "Green", seq: 16, stamp: "💼", audio_id: ["21274"] },
+    { id: "G17", nameZH: "台北小巨蛋", nameEN: "Taipei Arena", poj: "Tâi-pak Sió-kī-tn̄g", cx: 473, cy: 260, line: "Green", seq: 17, stamp: "🏟️", audio_id: ["27691"] },
+    { id: "G18", nameZH: "南京三民", nameEN: "Nanjing Sanmin", poj: "Lâm-kian Sann-bîn", cx: 516, cy: 260, line: "Green", seq: 18, stamp: "🍉", audio_id: ["27692"] },
+    { id: "G19", nameZH: "松山", nameEN: "Songshan", poj: "Siông-san", cx: 560, cy: 260, line: "Green", seq: 19, stamp: "🛕", audio_id: ["27693"] },
+    { id: "O01", nameZH: "南勢角", nameEN: "Nanshidu", poj: "Lâm-sì-kak", cx: 200, cy: 520, line: "Orange", seq: 1, stamp: "⛰️", audio_id: ["21317"] },
+    { id: "O02", nameZH: "景安", nameEN: "Jingan", poj: "Kíng-an", cx: 220, cy: 470, line: "Orange", seq: 2, stamp: "🛕", audio_id: ["21316"] },
+    { id: "O03", nameZH: "永安市場", nameEN: "Yongan Market", poj: "Íng-an Tshī-tiûnn", cx: 230, cy: 450, line: "Orange", seq: 3, stamp: "🍎", audio_id: ["21315"] },
+    { id: "O04", nameZH: "頂溪", nameEN: "Dingxi", poj: "Tíng-khe", cx: 240, cy: 435, line: "Orange", seq: 4, stamp: "🌊", audio_id: ["21314"] },
+    { id: "O05", nameZH: "古亭", nameEN: "Guting", poj: "Kóo-tîng", cx: 250, cy: 420, line: "Orange", seq: 5, stamp: "🛕", audio_id: ["21305"] },
+    { id: "O06", nameZH: "東門", nameEN: "Dongmen", poj: "Tang-mn̂g", cx: 360, cy: 360, line: "Orange", seq: 6, stamp: "🥟", audio_id: ["21405"] },
+    { id: "O07", nameZH: "忠孝新生", nameEN: "Zhongxiao Xinsheng", poj: "Tiong-hàu Sin-sing", cx: 360, cy: 300, line: "Orange", seq: 7, stamp: "🏫", audio_id: ["21404"] },
+    { id: "O08", nameZH: "松江南京", nameEN: "Songjiang Nanjing", poj: "Siông-kang Lâm-kian", cx: 360, cy: 260, line: "Orange", seq: 8, stamp: "💼", audio_id: ["21403"] },
+    { id: "O09", nameZH: "行天宮", nameEN: "Xingtian Temple", poj: "Hîng-thian-kiong", cx: 360, cy: 200, line: "Orange", seq: 9, stamp: "🛕", audio_id: ["21402"] },
+    { id: "O10", nameZH: "中山國小", nameEN: "Zhongshan Elementary School", poj: "Tiong-san Kok-sió", cx: 330, cy: 215, line: "Orange", seq: 10, stamp: "🏫", audio_id: ["21401"] },
+    { id: "O11", nameZH: "民權西路", nameEN: "Minquan W. Rd.", poj: "Bîn-khuân Se-lōo", cx: 300, cy: 230, line: "Orange", seq: 11, stamp: "🚦", audio_id: ["21299"] },
+    { id: "O12", nameZH: "大橋頭", nameEN: "Daqiaotou", poj: "Tuā-kiô-thâu", cx: 240, cy: 230, line: "Orange", seq: 12, stamp: "🧱", audio_id: ["21399"] },
+    { id: "O13", nameZH: "台北橋", nameEN: "Taipei Bridge", poj: "Tâi-pak Kiô", cx: 217, cy: 237, line: "Orange", seq: 13, stamp: "橋 🌉", audio_id: ["21398"] },
+    { id: "O14", nameZH: "菜寮", nameEN: "Cailiao", poj: "Tshài-liâu", cx: 193, cy: 243, line: "Orange", seq: 14, stamp: "🥬", audio_id: ["21397"] },
+    { id: "O15", nameZH: "三重", nameEN: "Sanchong", poj: "Saⁿ-tiông", cx: 170, cy: 250, line: "Orange", seq: 15, stamp: "橋 🌉", audio_id: ["21396"] },
+    { id: "O16", nameZH: "先嗇宮", nameEN: "Xianse Temple", poj: "Sian-sik-kiong", cx: 158, cy: 250, line: "Orange", seq: 16, stamp: "🛕", audio_id: ["21395"] },
+    { id: "O17", nameZH: "頭前庄", nameEN: "Touqianzhuang", poj: "Thâu-tsîng-tsng", cx: 146, cy: 250, line: "Orange", seq: 17, stamp: "🌾", audio_id: ["21394"] },
+    { id: "O18", nameZH: "新莊", nameEN: "Xinzhuang", poj: "Sin-tsng", cx: 134, cy: 250, line: "Orange", seq: 18, stamp: "🏺", audio_id: ["21393"] },
+    { id: "O19", nameZH: "輔大", nameEN: "Fu Jen University", poj: "Hú-tāi", cx: 122, cy: 250, line: "Orange", seq: 19, stamp: "🎓", audio_id: ["21392"] },
+    { id: "O20", nameZH: "丹鳳", nameEN: "Danfeng", poj: "Tan-hōng", cx: 111, cy: 250, line: "Orange", seq: 20, stamp: "🦅", audio_id: ["27683"] },
+    { id: "O21", nameZH: "迴龍", nameEN: "Huilong", poj: "Huê-liông", cx: 100, cy: 250, line: "Orange", seq: 21, stamp: "🐉", audio_id: ["27684"] },
+    { id: "BR01", nameZH: "動物園", nameEN: "Taipei Zoo", poj: "Tōng-bu̍t-hn̂g", cx: 550, cy: 500, line: "Brown", seq: 1, stamp: "🐼", audio_id: ["21284"] },
+    { id: "BR02", nameZH: "木柵", nameEN: "Muzha", poj: "Bo̍k-tsheh", cx: 530, cy: 488, line: "Brown", seq: 2, stamp: "🪵", audio_id: ["21283"] },
+    { id: "BR03", nameZH: "萬芳社區", nameEN: "Wanfan Community", poj: "Bān-hong Sia-khu", cx: 510, cy: 477, line: "Brown", seq: 3, stamp: "🏡", audio_id: ["21282"] },
+    { id: "BR04", nameZH: "萬芳醫院", nameEN: "Wanfang Hospital", poj: "Bān-hong I-īⁿ", cx: 490, cy: 465, line: "Brown", seq: 4, stamp: "🏥", audio_id: ["21281"] },
+    { id: "BR05", nameZH: "辛亥", nameEN: "Xinhai", poj: "Sin-hāi", cx: 470, cy: 453, line: "Brown", seq: 5, stamp: "💀", audio_id: ["21280"] },
+    { id: "BR06", nameZH: "麟光", nameEN: "Linguang", poj: "Lîn-kong", cx: 450, cy: 442, line: "Brown", seq: 6, stamp: "✨", audio_id: ["21279"] },
+    { id: "BR07", nameZH: "六張犁", nameEN: "Liuzhangli", poj: "La̍k-tiunn-lê", cx: 435, cy: 431, line: "Brown", seq: 7, stamp: "🍲", audio_id: ["21278"] },
+    { id: "BR08", nameZH: "科技大樓", nameEN: "Technology Bldg", poj: "Kho-ki Tāi-lâu", cx: 430, cy: 420, line: "Brown", seq: 8, stamp: "💻", audio_id: ["21277"] },
+    { id: "BR09", nameZH: "大安", nameEN: "Da'an", poj: "Tāi-an", cx: 430, cy: 360, line: "Brown", seq: 9, stamp: "🌳", audio_id: ["21276"] },
+    { id: "BR10", nameZH: "忠孝復興", nameEN: "Zhongxiao Fuxing", poj: "Tiong-hàu Ho̍k-hing", cx: 430, cy: 300, line: "Brown", seq: 10, stamp: "🛍️", audio_id: ["21275"] },
+    { id: "BR11", nameZH: "南京復興", nameEN: "Nanjing Fuxing", poj: "Lâm-kian Ho̍k-hing", cx: 430, cy: 260, line: "Brown", seq: 11, stamp: "💼", audio_id: ["21274"] },
+    { id: "BR12", nameZH: "中山國中", nameEN: "Zhongshan Junior HS", poj: "Tiong-san Kok-tiong", cx: 430, cy: 210, line: "Brown", seq: 12, stamp: "🏫", audio_id: ["21273"] },
+    { id: "BR13", nameZH: "松山機場", nameEN: "Songshan Airport", poj: "Siông-san Ki-tiûnn", cx: 445, cy: 180, line: "Brown", seq: 13, stamp: "✈️", audio_id: ["21391"] },
+    { id: "BR14", nameZH: "大直", nameEN: "Dazhi", poj: "Tōa-ti̍t", cx: 460, cy: 150, line: "Brown", seq: 14, stamp: "🏞️", audio_id: ["21378"] },
+    { id: "BR15", nameZH: "劍南路", nameEN: "Jiannan Rd.", poj: "Kiàm-lâm-lōo", cx: 520, cy: 150, line: "Brown", seq: 15, stamp: "🎡", audio_id: ["21379"] },
+    { id: "BR16", nameZH: "西湖", nameEN: "Xihu", poj: "Se-ôo", cx: 550, cy: 175, line: "Brown", seq: 16, stamp: "🌅", audio_id: ["21380"] },
+    { id: "BR17", nameZH: "港墘", nameEN: "Gangqian", poj: "Káng-kîⁿ", cx: 580, cy: 200, line: "Brown", seq: 17, stamp: "🏞️", audio_id: ["21381"] },
+    { id: "BR18", nameZH: "文德", nameEN: "Wende", poj: "Bûn-tek", cx: 600, cy: 215, line: "Brown", seq: 18, stamp: "🌲", audio_id: ["21382"] },
+    { id: "BR19", nameZH: "內湖", nameEN: "Neihu", poj: "Lāi-ôo", cx: 620, cy: 230, line: "Brown", seq: 19, stamp: "🏞️", audio_id: ["21383"] },
+    { id: "BR20", nameZH: "大湖公園", nameEN: "Dahu Park", poj: "Tuā-ôo Kong-hnhg", cx: 630, cy: 250, line: "Brown", seq: 20, stamp: "🦆", audio_id: ["21384"] },
+    { id: "BR21", nameZH: "葫洲", nameEN: "Huzhou", poj: "Hôo-tsiu", cx: 625, cy: 270, line: "Brown", seq: 21, stamp: "🍵", audio_id: ["21385"] },
+    { id: "BR22", nameZH: "東湖", nameEN: "Donghu", poj: "Tang-ôo", cx: 620, cy: 280, line: "Brown", seq: 22, stamp: "🌊", audio_id: ["21386"] },
+    { id: "BR23", nameZH: "南港軟體園區", nameEN: "Nangang Software Park", poj: "Lâm-káng Nńg-thé Hn̂g-khu", cx: 610, cy: 290, line: "Brown", seq: 23, stamp: "💻", audio_id: ["21387"] },
+    { id: "BR24", nameZH: "南港展覽館", nameEN: "Nangang Exhibition", poj: "Lâm-káng Tián-lám-kuán", cx: 600, cy: 300, line: "Brown", seq: 24, stamp: "🏟️", audio_id: ["21390"] }
+];
+
+// ==========================================
+// 2. 交通台語詞彙庫
+// ==========================================
+const vocabData = [
+    // --- 交通工具 ---
+    { zh: "捷運",   tw: "chia̍t-ūn",        en: "Metro/MRT",    emoji: " Metro 🚇",    type: "vehicles" },
+    { zh: "公車",   tw: "kong-chhia",       en: "Bus",          emoji: " Bus 🚌",      type: "vehicles" },
+    { zh: "高鐵",   tw: "ko-thih",          en: "HSR",          emoji: " Bullet 🚅",   type: "vehicles" },
+    { zh: "火車",   tw: "hoé-chhia",        en: "Train",        emoji: " Train 🚄",    type: "vehicles" },
+    { zh: "渡輪",   tw: "tōo-lûn",          en: "Ferry",        emoji: " Ferry 🚢",    type: "vehicles" },
+    { zh: "鐵馬",   tw: "thih-bé",          en: "Bicycle",      emoji: " Bike 🚲",     type: "vehicles" },
+    { zh: "計程車", tw: "kè-thêng-chhia",   en: "Taxi",         emoji: " Taxi 🚕",     type: "vehicles" },
+    // --- 場景詞彙 ---
+    { zh: "月台",   tw: "gue̍h-tâi",        en: "Platform",     emoji: " Platform 🚉", type: "scene" },
+    { zh: "捷運站", tw: "chia̍t-ūn-tsām",   en: "Metro Station",emoji: " Station 🏢",  type: "scene" },
+    { zh: "閘門",   tw: "tsa̍h-mn̂g",        en: "Ticket Gate",  emoji: " Gate 🎟️",    type: "scene" },
+    { zh: "車票",   tw: "chhia-phiò",       en: "Ticket",       emoji: " Ticket 🎫",   type: "scene" },
+    { zh: "悠遊卡", tw: "iû-iû-khah",       en: "EasyCard",     emoji: " EasyCard 💳", type: "scene" },
+    { zh: "司機",   tw: "su-ki",            en: "Driver",       emoji: " Driver 🧑‍✈️", type: "scene" },
+    { zh: "賣票機", tw: "bē-phiò-ki",       en: "Ticket Machine",emoji: " Machine 🤖", type: "scene" },
+    { zh: "軌道",   tw: "kuí-tō",           en: "Track/Rail",   emoji: " Rail 🛤️",    type: "scene" },
+    // --- 淡水信義線 (紅線) ---
+    { zh: "淡水",       tw: "Tām-tsuí",             en: "Tamsui",            emoji: "🌅 R28", type: "line-Red", audio_id: ["7521"],  id: "R28" },
+    { zh: "紅樹林",     tw: "Âng-siū-nâ",           en: "Hongshulin",        emoji: "🌲 R27", type: "line-Red", audio_id: ["21285"], id: "R27" },
+    { zh: "竹圍",       tw: "Tek-uî",               en: "Zhuwei",            emoji: "🎋 R26", type: "line-Red", audio_id: ["21286"], id: "R26" },
+    { zh: "關渡",       tw: "Kan-tāu",              en: "Guandu",            emoji: "🐦 R25", type: "line-Red", audio_id: ["21287"], id: "R25" },
+    { zh: "忠義",       tw: "Tiong-gī",             en: "Zhongyi",           emoji: "⛪ R24", type: "line-Red", audio_id: ["21288"], id: "R24" },
+    { zh: "復興崗",     tw: "Ho̍k-hing-káng",        en: "Fuxinggang",        emoji: "⛰️ R23", type: "line-Red", audio_id: ["21289"], id: "R23" },
+    { zh: "北投",       tw: "Pak-tâu",              en: "Beitou",            emoji: "♨️ R22", type: "line-Red", audio_id: ["21290"], id: "R22" },
+    { zh: "奇岩",       tw: "Kî-gâm",               en: "Qiyan",             emoji: "🪨 R21", type: "line-Red", audio_id: ["21291"], id: "R21" },
+    { zh: "唭哩岸",     tw: "Kî-lī-ān",             en: "Qilian",            emoji: "🌾 R20", type: "line-Red", audio_id: ["21292"], id: "R20" },
+    { zh: "石牌",       tw: "Tsio̍h-pâi",            en: "Shipai",            emoji: "🪦 R19", type: "line-Red", audio_id: ["1961"],  id: "R19" },
+    { zh: "明德",       tw: "Bîng-tik",              en: "Mingde",            emoji: "🏫 R18", type: "line-Red", audio_id: ["21294"], id: "R18" },
+    { zh: "芝山",       tw: "Tsi-soaⁿ",             en: "Zhishan",           emoji: "🌲 R17", type: "line-Red", audio_id: ["21295"], id: "R17" },
+    { zh: "士林",       tw: "Sū-lîm",               en: "Shilin",            emoji: "🍎 R16", type: "line-Red", audio_id: ["21296"], id: "R16" },
+    { zh: "劍潭",       tw: "Kiàm-thâm",            en: "Jiantan",           emoji: "🎪 R15", type: "line-Red", audio_id: ["21297"], id: "R15" },
+    { zh: "圓山",       tw: "Îⁿ-soaⁿ",              en: "Yuanshan",          emoji: "🏛️ R14", type: "line-Red", audio_id: ["21298"], id: "R14" },
+    { zh: "民權西路",   tw: "Bîn-khuân Se-lōo",     en: "Minquan W. Rd.",    emoji: "🚦 R13", type: "line-Red", audio_id: ["21299"], id: "R13" },
+    { zh: "雙連",       tw: "Siang-liân",            en: "Shuanglian",        emoji: "🌊 R12", type: "line-Red", audio_id: ["21300"], id: "R12" },
+    { zh: "中山",       tw: "Tiong-san",             en: "Zhongshan",         emoji: "🛍️ R11", type: "line-Red", audio_id: ["21301"], id: "R11" },
+    { zh: "台北車站",   tw: "Tâi-pak Chhia-chām",   en: "Taipei Main Station",emoji: "🚉 R10", type: "line-Red", audio_id: ["21302"], id: "R10" },
+    { zh: "台大醫院",   tw: "Tâi-tāi I-īⁿ",         en: "NTU Hospital",      emoji: "🏥 R09", type: "line-Red", audio_id: ["21303"], id: "R09" },
+    { zh: "中正紀念堂", tw: "Tiong-tsìng Kì-liām-tông",en: "CKS Memorial Hall",emoji: "🏛️ R08", type: "line-Red", audio_id: ["21304"], id: "R08" },
+    { zh: "東門",       tw: "Tang-mn̂g",             en: "Dongmen",           emoji: "🥟 R07", type: "line-Red", audio_id: ["21405"], id: "R07" },
+    { zh: "大安森林公園",tw: "Tāi-an Sim-lîm Kong-hn̂g",en: "Daan Park",      emoji: "🌳 G06", type: "line-Red", audio_id: ["27679"], id: "G06" },
+    { zh: "大安",       tw: "Tāi-an",               en: "Da'an",             emoji: "🌳 R05", type: "line-Red", audio_id: ["21276"], id: "R05" },
+    { zh: "信義安和",   tw: "Sìn-gī An-hô",          en: "Xinyi Anhe",        emoji: "🍲 R04", type: "line-Red", audio_id: ["27681"], id: "R04" },
+    { zh: "台北101/世貿",tw: "Tâi-pak It-lîng-it Sè-bāu",en: "Taipei 101/WTC",emoji: "🗼 R03", type: "line-Red", audio_id: ["20637","2","12091","2","1292","9043"], id: "R03" },
+    { zh: "象山",       tw: "Chhiūⁿ-soaⁿ",          en: "Xiangshan",         emoji: "🐘 R02", type: "line-Red", audio_id: ["27677"], id: "R02" },
+    // --- 板南線 (藍線) ---
+    { zh: "頂埔",       tw: "Tíng-poo",             en: "Dingpu",            emoji: "🏭 BL01", type: "line-Blue", audio_id: ["20768"], id: "BL01" },
+    { zh: "永寧",       tw: "Íng-nîng",             en: "Yongning",          emoji: "🛕 BL02", type: "line-Blue", audio_id: ["21337"], id: "BL02" },
+    { zh: "土城",       tw: "Thôo-siânn",           en: "Tucheng",           emoji: "🏰 BL03", type: "line-Blue", audio_id: ["21336"], id: "BL03" },
+    { zh: "海山",       tw: "Hái-soaⁿ",             en: "Haishan",           emoji: "🌊 BL04", type: "line-Blue", audio_id: ["21335"], id: "BL04" },
+    { zh: "亞東醫院",   tw: "À-tong I-īⁿ",          en: "Far Eastern Hospital",emoji: "🏥 BL05", type: "line-Blue", audio_id: ["21334"], id: "BL05" },
+    { zh: "府中",       tw: "Hú-tiong",             en: "Fuzhong",           emoji: "🏮 BL06", type: "line-Blue", audio_id: ["21333"], id: "BL06" },
+    { zh: "板橋",       tw: "Pán-kiô",              en: "Banqiao",           emoji: "🌉 BL07", type: "line-Blue", audio_id: ["20639"], id: "BL07" },
+    { zh: "新埔",       tw: "Sin-poo",              en: "Xinpu",             emoji: "🌾 BL08", type: "line-Blue", audio_id: ["20713"], id: "BL08" },
+    { zh: "江子翠",     tw: "Kang-tsí-tshuī",       en: "Jiangzicui",        emoji: "🐦 BL09", type: "line-Blue", audio_id: ["21330"], id: "BL09" },
+    { zh: "龍山寺",     tw: "Liông-san-sī",          en: "Longshan Temple",   emoji: "🛕 BL10", type: "line-Blue", audio_id: ["21329"], id: "BL10" },
+    { zh: "西門",       tw: "Se-mn̂g",               en: "Ximen",             emoji: "🎭 BL11", type: "line-Blue", audio_id: ["21328"], id: "BL11" },
+    { zh: "台北車站",   tw: "Tâi-pak Chhia-chām",   en: "Taipei Main Station",emoji: "🚉 BL12", type: "line-Blue", audio_id: ["21302"], id: "BL12" },
+    { zh: "善導寺",     tw: "Siān-tō-sī",            en: "Shandao Temple",    emoji: "🛕 BL13", type: "line-Blue", audio_id: ["21326"], id: "BL13" },
+    { zh: "忠孝新生",   tw: "Tiong-hàu Sin-sing",   en: "Zhongxiao Xinsheng",emoji: "🏫 BL14", type: "line-Blue", audio_id: ["21404"], id: "BL14" },
+    { zh: "忠孝復興",   tw: "Tiong-hàu Ho̍k-hing",  en: "Zhongxiao Fuxing",  emoji: "🛍️ BL15", type: "line-Blue", audio_id: ["21275"], id: "BL15" },
+    { zh: "忠孝敦化",   tw: "Tiong-hàu Tun-huà",   en: "Zhongxiao Dunhua",  emoji: "🛍️ BL16", type: "line-Blue", audio_id: ["21323"], id: "BL16" },
+    { zh: "國父紀念館", tw: "Kok-hū Kì-liām-kuán",  en: "Sun Yat-Sen Mem.",  emoji: "🏛️ BL17", type: "line-Blue", audio_id: ["21322"], id: "BL17" },
+    { zh: "市政府",     tw: "Tshī-tsìng-hú",        en: "Taipei City Hall",  emoji: "🏢 BL18", type: "line-Blue", audio_id: ["21321"], id: "BL18" },
+    { zh: "永春",       tw: "Íng-tshun",            en: "Yongchun",          emoji: "🌸 BL19", type: "line-Blue", audio_id: ["21320"], id: "BL19" },
+    { zh: "後山埤",     tw: "Āu-soaⁿ-phi",          en: "Houshanpi",         emoji: "🏞️ BL20", type: "line-Blue", audio_id: ["21319"], id: "BL20" },
+    { zh: "昆陽",       tw: "Khun-iông",            en: "Kunyang",           emoji: "🌅 BL21", type: "line-Blue", audio_id: ["21318"], id: "BL21" },
+    { zh: "南港",       tw: "Lâm-káng",             en: "Nangang",           emoji: "💾 BL22", type: "line-Blue", audio_id: ["21389"], id: "BL22" },
+    { zh: "南港展覽館", tw: "Lâm-káng Tián-lám-kuán",en: "Nangang Exhibition",emoji: "🏟️ BL23", type: "line-Blue", audio_id: ["21390"], id: "BL23" },
+    // --- 松山新店線 (綠線) ---
+    { zh: "新店",       tw: "Sin-tiàm",             en: "Xindian",           emoji: "⛵ G01", type: "line-Green", audio_id: ["21313"], id: "G01" },
+    { zh: "新店區公所", tw: "Sin-tiàm Khiu Kong-sóo",en: "Xindian Dist. Off.",emoji: "🏢 G02", type: "line-Green", audio_id: ["21312"], id: "G02" },
+    { zh: "七張",       tw: "Tshit-tiunn",          en: "Qizhang",           emoji: "7️⃣ G03", type: "line-Green", audio_id: ["21311"], id: "G03" },
+    { zh: "大坪林",     tw: "Tuā-pînn-lîm",         en: "Dapinglin",         emoji: "🌲 G04", type: "line-Green", audio_id: ["21310"], id: "G04" },
+    { zh: "景美",       tw: "Kíng-bí",              en: "Jingmei",           emoji: "🏞️ G05", type: "line-Green", audio_id: ["20788"], id: "G05" },
+    { zh: "萬隆",       tw: "Bān-liông",            en: "Wanlong",           emoji: "🌊 G06", type: "line-Green", audio_id: ["21308"], id: "G06b" },
+    { zh: "公館",       tw: "Kong-koán",            en: "Gongguan",          emoji: "🏫 G07", type: "line-Green", audio_id: ["764"],   id: "G07" },
+    { zh: "台電大樓",   tw: "Tâi-tiān Tāi-lâu",    en: "Taipower Building", emoji: "⚡ G08", type: "line-Green", audio_id: ["21306"], id: "G08" },
+    { zh: "古亭",       tw: "Kóo-tîng",             en: "Guting",            emoji: "🛕 G09", type: "line-Green", audio_id: ["21305"], id: "G09" },
+    { zh: "中正紀念堂", tw: "Tiong-tsìng Kì-liām-tông",en: "CKS Memorial Hall",emoji: "🏛️ G10", type: "line-Green", audio_id: ["21304"], id: "G10" },
+    { zh: "西門",       tw: "Se-mn̂g",               en: "Ximen",             emoji: "🎭 G11", type: "line-Green", audio_id: ["21328"], id: "G11" },
+    { zh: "小南門",     tw: "Sió-lâm-mn̂g",          en: "Xiaonanmen",        emoji: "⛩️ G12", type: "line-Green", audio_id: ["21338"], id: "G12" },
+    { zh: "北門",       tw: "Pak-mn̂g",              en: "Beimen",            emoji: "🧱 G13", type: "line-Green", audio_id: ["20862"], id: "G13" },
+    { zh: "中山",       tw: "Tiong-san",             en: "Zhongshan",         emoji: "🛍️ G14", type: "line-Green", audio_id: ["21301"], id: "G14" },
+    { zh: "松江南京",   tw: "Siông-kang Lâm-kian",  en: "Songjiang Nanjing", emoji: "💼 G15", type: "line-Green", audio_id: ["21403"], id: "G15" },
+    { zh: "南京復興",   tw: "Lâm-kian Ho̍k-hing",   en: "Nanjing Fuxing",    emoji: "💼 G16", type: "line-Green", audio_id: ["21274"], id: "G16" },
+    { zh: "台北小巨蛋", tw: "Tâi-pak Sió-kī-tn̄g",  en: "Taipei Arena",      emoji: "🏟️ G17", type: "line-Green", audio_id: ["27691"], id: "G17" },
+    { zh: "南京三民",   tw: "Lâm-kian Sann-bîn",   en: "Nanjing Sanmin",    emoji: "🍉 G18", type: "line-Green", audio_id: ["27692"], id: "G18" },
+    { zh: "松山",       tw: "Siông-san",            en: "Songshan",          emoji: "🛕 G19", type: "line-Green", audio_id: ["27693"], id: "G19" },
+    // --- 中和新蘆線 (橘線) ---
+    { zh: "南勢角",     tw: "Lâm-sì-kak",           en: "Nanshidu",          emoji: "⛰️ O01", type: "line-Orange", audio_id: ["21317"], id: "O01" },
+    { zh: "景安",       tw: "Kíng-an",              en: "Jingan",            emoji: "🛕 O02", type: "line-Orange", audio_id: ["21316"], id: "O02" },
+    { zh: "永安市場",   tw: "Íng-an Tshī-tiûnn",   en: "Yongan Market",     emoji: "🍎 O03", type: "line-Orange", audio_id: ["21315"], id: "O03" },
+    { zh: "頂溪",       tw: "Tíng-khe",             en: "Dingxi",            emoji: "🌊 O04", type: "line-Orange", audio_id: ["21314"], id: "O04" },
+    { zh: "古亭",       tw: "Kóo-tîng",             en: "Guting",            emoji: "🛕 O05", type: "line-Orange", audio_id: ["21305"], id: "O05" },
+    { zh: "東門",       tw: "Tang-mn̂g",             en: "Dongmen",           emoji: "🥟 O06", type: "line-Orange", audio_id: ["21405"], id: "O06" },
+    { zh: "忠孝新生",   tw: "Tiong-hàu Sin-sing",   en: "Zhongxiao Xinsheng",emoji: "🏫 O07", type: "line-Orange", audio_id: ["21404"], id: "O07" },
+    { zh: "松江南京",   tw: "Siông-kang Lâm-kian",  en: "Songjiang Nanjing", emoji: "💼 O08", type: "line-Orange", audio_id: ["21403"], id: "O08" },
+    { zh: "行天宮",     tw: "Hîng-thian-kiong",     en: "Xingtian Temple",   emoji: "🛕 O09", type: "line-Orange", audio_id: ["21402"], id: "O09" },
+    { zh: "中山國小",   tw: "Tiong-san Kok-sió",   en: "Zhongshan Elem. Sch.",emoji: "🏫 O10", type: "line-Orange", audio_id: ["21401"], id: "O10" },
+    { zh: "民權西路",   tw: "Bîn-khuân Se-lōo",     en: "Minquan W. Rd.",    emoji: "🚦 O11", type: "line-Orange", audio_id: ["21299"], id: "O11" },
+    { zh: "大橋頭",     tw: "Tuā-kiô-thâu",         en: "Daqiaotou",         emoji: "🧱 O12", type: "line-Orange", audio_id: ["21399"], id: "O12" },
+    { zh: "台北橋",     tw: "Tâi-pak Kiô",          en: "Taipei Bridge",     emoji: "🌉 O13", type: "line-Orange", audio_id: ["21398"], id: "O13" },
+    { zh: "菜寮",       tw: "Tshài-liâu",           en: "Cailiao",           emoji: "🥬 O14", type: "line-Orange", audio_id: ["21397"], id: "O14" },
+    { zh: "三重",       tw: "Saⁿ-tiông",            en: "Sanchong",          emoji: "🌉 O15", type: "line-Orange", audio_id: ["21396"], id: "O15" },
+    { zh: "先嗇宮",     tw: "Sian-sik-kiong",       en: "Xianse Temple",     emoji: "🛕 O16", type: "line-Orange", audio_id: ["21395"], id: "O16" },
+    { zh: "頭前庄",     tw: "Thâu-tsîng-tsng",      en: "Touqianzhuang",     emoji: "🌾 O17", type: "line-Orange", audio_id: ["21394"], id: "O17" },
+    { zh: "新莊",       tw: "Sin-tsng",             en: "Xinzhuang",         emoji: "🏺 O18", type: "line-Orange", audio_id: ["21393"], id: "O18" },
+    { zh: "輔大",       tw: "Hú-tāi",              en: "Fu Jen University", emoji: "🎓 O19", type: "line-Orange", audio_id: ["21392"], id: "O19" },
+    { zh: "丹鳳",       tw: "Tan-hōng",             en: "Danfeng",           emoji: "🦅 O20", type: "line-Orange", audio_id: ["27683"], id: "O20" },
+    { zh: "迴龍",       tw: "Huê-liông",            en: "Huilong",           emoji: "🐉 O21", type: "line-Orange", audio_id: ["27684"], id: "O21" },
+    // --- 文湖線 (棕線) ---
+    { zh: "動物園",     tw: "Tōng-bu̍t-hn̂g",        en: "Taipei Zoo",        emoji: "🐼 BR01", type: "line-Brown", audio_id: ["21284"], id: "BR01" },
+    { zh: "木柵",       tw: "Bo̍k-tsheh",            en: "Muzha",             emoji: "🪵 BR02", type: "line-Brown", audio_id: ["21283"], id: "BR02" },
+    { zh: "萬芳社區",   tw: "Bān-hong Sia-khu",     en: "Wanfan Community",  emoji: "🏡 BR03", type: "line-Brown", audio_id: ["21282"], id: "BR03" },
+    { zh: "萬芳醫院",   tw: "Bān-hong I-īⁿ",        en: "Wanfang Hospital",  emoji: "🏥 BR04", type: "line-Brown", audio_id: ["21281"], id: "BR04" },
+    { zh: "辛亥",       tw: "Sin-hāi",              en: "Xinhai",            emoji: "💀 BR05", type: "line-Brown", audio_id: ["21280"], id: "BR05" },
+    { zh: "麟光",       tw: "Lîn-kong",             en: "Linguang",          emoji: "✨ BR06", type: "line-Brown", audio_id: ["21279"], id: "BR06" },
+    { zh: "六張犁",     tw: "La̍k-tiunn-lê",         en: "Liuzhangli",        emoji: "🍲 BR07", type: "line-Brown", audio_id: ["21278"], id: "BR07" },
+    { zh: "科技大樓",   tw: "Kho-ki Tāi-lâu",       en: "Technology Bldg",   emoji: "💻 BR08", type: "line-Brown", audio_id: ["21277"], id: "BR08" },
+    { zh: "大安",       tw: "Tāi-an",               en: "Da'an",             emoji: "🌳 BR09", type: "line-Brown", audio_id: ["21276"], id: "BR09" },
+    { zh: "忠孝復興",   tw: "Tiong-hàu Ho̍k-hing",  en: "Zhongxiao Fuxing",  emoji: "🛍️ BR10", type: "line-Brown", audio_id: ["21275"], id: "BR10" },
+    { zh: "南京復興",   tw: "Lâm-kian Ho̍k-hing",   en: "Nanjing Fuxing",    emoji: "💼 BR11", type: "line-Brown", audio_id: ["21274"], id: "BR11" },
+    { zh: "中山國中",   tw: "Tiong-san Kok-tiong",  en: "Zhongshan Jr. HS",  emoji: "🏫 BR12", type: "line-Brown", audio_id: ["21273"], id: "BR12" },
+    { zh: "松山機場",   tw: "Siông-san Ki-tiûnn",   en: "Songshan Airport",  emoji: "✈️ BR13", type: "line-Brown", audio_id: ["21391"], id: "BR13" },
+    { zh: "大直",       tw: "Tōa-ti̍t",              en: "Dazhi",             emoji: "🏞️ BR14", type: "line-Brown", audio_id: ["21378"], id: "BR14" },
+    { zh: "劍南路",     tw: "Kiàm-lâm-lōo",         en: "Jiannan Rd.",       emoji: "🎡 BR15", type: "line-Brown", audio_id: ["21379"], id: "BR15" },
+    { zh: "西湖",       tw: "Se-ôo",                en: "Xihu",              emoji: "🌅 BR16", type: "line-Brown", audio_id: ["21380"], id: "BR16" },
+    { zh: "港墘",       tw: "Káng-kîⁿ",             en: "Gangqian",          emoji: "🏞️ BR17", type: "line-Brown", audio_id: ["21381"], id: "BR17" },
+    { zh: "文德",       tw: "Bûn-tek",              en: "Wende",             emoji: "🌲 BR18", type: "line-Brown", audio_id: ["21382"], id: "BR18" },
+    { zh: "內湖",       tw: "Lāi-ôo",               en: "Neihu",             emoji: "🏞️ BR19", type: "line-Brown", audio_id: ["21383"], id: "BR19" },
+    { zh: "大湖公園",   tw: "Tuā-ôo Kong-hn̂g",     en: "Dahu Park",         emoji: "🦆 BR20", type: "line-Brown", audio_id: ["21384"], id: "BR20" },
+    { zh: "葫洲",       tw: "Hôo-tsiu",             en: "Huzhou",            emoji: "🍵 BR21", type: "line-Brown", audio_id: ["21385"], id: "BR21" },
+    { zh: "東湖",       tw: "Tang-ôo",              en: "Donghu",            emoji: "🌊 BR22", type: "line-Brown", audio_id: ["21386"], id: "BR22" },
+    { zh: "南港軟體園區",tw: "Lâm-káng Nńg-thé Hn̂g-khu",en: "Nangang Software Park",emoji: "💻 BR23", type: "line-Brown", audio_id: ["21387"], id: "BR23" },
+    { zh: "南港展覽館", tw: "Lâm-káng Tián-lám-kuán",en: "Nangang Exhibition",emoji: "🏟️ BR24", type: "line-Brown", audio_id: ["21390"], id: "BR24" }
+];
+
+// ==========================================
+// 3. 語音對照字典與同音字 (本地離線備援使用)
+// ==========================================
+const twHomophones = {
+    // 數字
+    "一_quantity": "即", "一_digit": "一",
+    "二": "利", "三": "沙", "四": "細", "五": "喔", "六": "拉", "七": "七", "八": "杯", "九": "告", "十": "雜",
+    "兩": "冷", "百": "百", "千": "千",
+
+    // 站點
+    "淡水": "探水", "紅樹林": "昂秀拿", "竹圍": "德圍", "關渡": "甘豆", "忠義": "中義",
+    "復興崗": "合興港", "北投": "杯投", "奇岩": "期言", "唭哩岸": "奇里岸", "石牌": "休牌",
+    "明德": "明德", "芝山": "基三", "士林": "是林", "劍潭": "兼談", "圓山": "影三",
+    "民權西路": "民權希路", "雙連": "相聯", "中山": "中三", "台北車站": "台巴瞎贊",
+    "台北": "台巴", "台大醫院": "台大伊恩", "中正紀念堂": "中精幾念堂", "東門": "東門",
+    "大安森林公園": "大安森林功恩", "大安": "戴安", "信義安和": "信宜安厚",
+    "台北101": "台巴一零一", "世貿": "誰某", "象山": "請山", "頂埔": "頂波",
+    "永寧": "影寧", "土城": "投寫", "海山": "海三", "亞東醫院": "阿東伊恩",
+    "府中": "府終", "板橋": "般交", "新埔": "新波", "江子翠": "工幾脆",
+    "龍山寺": "良三寺", "西門": "誰門", "善導寺": "善道寺", "忠孝新生": "中好新星",
+    "忠孝復興": "中好福興", "忠孝敦化": "中好敦化", "國父紀念館": "合乎幾念館",
+    "市政府": "市金府", "永春": "影春", "後山埤": "奧三比", "昆陽": "坤優",
+    "南港": "藍港", "南港展覽館": "藍港展覽館", "新店": "新點",
+    "新店區公所": "新點區公所", "七張": "七丟", "大坪林": "端平林", "景美": "景尾",
+    "萬隆": "萬龍", "小南門": "修藍門", "公館": "工管", "台電大樓": "台電戴樓",
+    "古亭": "古頂", "北門": "杯門", "松江南京": "松剛藍金", "台北小巨蛋": "台巴修巨蛋",
+    "南京三民": "藍金三民", "松山": "松三", "南勢角": "藍細角", "景安": "經安",
+    "永安市場": "影安市廠", "頂溪": "頂科", "中山國小": "中三國小", "台北橋": "台巴橋",
+    "菜寮": "蔡寮", "三重": "沙中", "先嗇宮": "仙色宮", "頭前庄": "投前莊",
+    "新莊": "新裝", "輔大": "府大", "丹鳳": "丹烘", "迴龍": "回良",
+    "動物園": "懂沒婚", "木柵": "木冊", "萬芳社區": "萬風寫庫", "萬芳醫院": "萬風伊恩",
+    "辛亥": "新海", "麟光": "林光", "六張犁": "拉丟犁", "科技大樓": "科給大樓",
+    "中山國中": "中安國中", "松山機場": "松三機場", "大直": "大底", "港墘": "港幾",
+    "劍南路": "劍藍路", "西湖": "誰胡", "文德": "門德", "內湖": "奈胡",
+    "大湖公園": "端胡公園", "葫洲": "胡秋", "東湖": "當胡", "南港軟體園區": "藍港軟體功恩",
+
+    // 詞彙與文法
+    "我": "哇", "欲": "卜", "對": "微", "去": "企", "買": "美", "張": "丟", "票": "標",
+    "個": "誒", "元": "科", "箍": "科", "攏總": "龍總", "開車": "虧車", "發車": "虧車",
+    "等車": "坦車", "佇": "帝", "第": "碟", "第一": "碟伊", "月台": "外台",
+    "捷運": "基溫", "公車": "工車", "高鐵": "高鐵", "火車": "毀車", "渡輪": "度論",
+    "鐵馬": "鐵杯", "計程車": "給聽車", "車票": "車標", "司機": "司機", "售票機": "杯標幾",
+    "賣票機": "杯標幾", "軌道": "鬼道", "閘門": "炸門", "早起": "載起", "下晡": "誒撥",
+    "暗時": "暗喜", "點半": "點半", "半": "半", "點": "點", "分": "昏", "小時": "點鐘",
+    "分鐘": "昏晶", "答對了": "丟啊", "答錯了": "嗯丟喔", "著矣": "丟啊", "毋著喔": "嗯丟喔"
+};
+
+// ==========================================
+// 4. UI 雙語字典
+// ==========================================
+const uiStrings = {
+    ZH: {
+        title: "台北捷運四界走", subtitle: "歡喜學台語 / Fun Taiwanese TRTC Adventure",
+        tabAdventure: "購票大冒險", tabVocab: "交通詞彙牆", tabTime: "時間鐘點師", tabQuiz: "台語大檢定", tabStamps: "我的集章冊",
+        boothTitle: "售票亭 Ticket Booth", labelFrom: "起點站 From:", labelTo: "終點站 To:",
+        labelClass: "乘車種類 Class:", labelPassengers: "張數 Tickets:", labelDepTime: "發車時間 Departure:",
+        infoDirection: "行車路線 Route Line:", infoDuration: "乘車時間 Duration:",
+        infoCost: "總票價 Total Cost:", infoPlatform: "候車月台 Platform:",
+        btnPlayJourney: "播放台語購票語音", mapTitle: "台北捷運路線圖 Map",
+        vocabTitle: "交通台語詞彙牆 Vocabulary", clockTitle: "撥撥看時鐘 Clock Trainer",
+        timeLearnTitle: "時間台語發音教室", labelAdjustTime: "微調時間 Adjust Time:", labelPresetTime: "常見列車發車時間 Presets:",
+        btnPlayClock: "播放台語時間發音", quizTitle: "台語大檢定 Challenge Mode",
+        quizWelcomeTitle: "準備接受台語大挑戰了嗎？",
+        quizWelcomeDesc: "我們提供捷運大檢定關卡！點選按鈕後將隨機播放 10 題台語語音，在時限內選出正確答案。答對 8 題以上即可解鎖該捷運站的精美紀念印章喔！",
+        quizSellerName: "售票員聽力挑戰", quizTimeName: "發車時刻聽力挑戰",
+        btnRetry: "返回檢定選單", stampsTitle: "我的捷運集章冊 Stamp Album",
+        stampsDesc: "在「台語大檢定」中答對 8 題以上即可隨機獲得一個捷運站的限定紀念章。收集越多，代表你已經搭著捷運玩遍了台北！",
+        redLineText: "紅線列車 🔴", blueLineText: "藍線列車 🔵", greenLineText: "綠線列車 🟢", orangeLineText: "橘線列車 🟠", brownLineText: "棕線列車 🟤", transferText: "跨線轉乘 🔄", sameStation: "同站出發 🚉",
+        platformNum: "第 {0} 月台", ticketCount: "{0} 張", priceUnit: "{0} 元",
+        hours: "{0} 小時", mins: "{0} 分鐘", durationFormat: "{0}小時 {1}分鐘",
+        langBtnText: "Language: 台語"
+    },
+    EN: {
+        title: "Taipei Metro Tour", subtitle: "歡喜學台語 / Fun Taiwanese TRTC Adventure",
+        tabAdventure: "Ticket Adventure", tabVocab: "Vocab Wall", tabTime: "Time Trainer", tabQuiz: "Quiz Challenge", tabStamps: "Stamp Album",
+        boothTitle: "Ticket Booth", labelFrom: "Origin:", labelTo: "Destination:",
+        labelClass: "Transport Class:", labelPassengers: "Tickets:", labelDepTime: "Departure Time:",
+        infoDirection: "Route Line:", infoDuration: "Travel Duration:",
+        infoCost: "Total Fare:", infoPlatform: "Platform:",
+        btnPlayJourney: "Play Voice (Taiwanese)", mapTitle: "Metro Map",
+        vocabTitle: "Transport Vocab Wall", clockTitle: "Interactive Clock",
+        timeLearnTitle: "Time Pronunciation Class", labelAdjustTime: "Adjust Time:", labelPresetTime: "Train Departure Presets:",
+        btnPlayClock: "Play Clock Voice", quizTitle: "Taiwanese Quiz Challenge",
+        quizWelcomeTitle: "Ready for the Taiwanese Challenge?",
+        quizWelcomeDesc: "Choose a challenge! We have 2 listening quizzes. Listen to 10 Taiwanese audio clips and choose the correct answer under the timer. Score 8+ to unlock a beautiful commemorative metro stamp!",
+        quizSellerName: "Ticket Seller Quiz", quizTimeName: "Departure Time Quiz",
+        btnRetry: "Back to Menu", stampsTitle: "My TRTC Stamp Album",
+        stampsDesc: "Score 8+ in any quiz challenge to collect a commemorative TRTC station stamp. Collect them all to complete your Taipei journey!",
+        redLineText: "Red Line 🔴", blueLineText: "Blue Line 🔵", greenLineText: "Green Line 🟢", orangeLineText: "Orange Line 🟠", brownLineText: "Brown Line 🟤", transferText: "Transfer 🔄", sameStation: "Same Station 🚉",
+        platformNum: "Platform {0}", ticketCount: "{0} Ticket(s)", priceUnit: "NT$ {0}",
+        hours: "{0} hr", mins: "{0} min", durationFormat: "{0}h {1}m",
+        langBtnText: "Language: English"
+    }
+};
+
+// ==========================================
+// 5. 狀態變數 (App State)
+// ==========================================
+let currentLang = "ZH";
+let passengers = 1;
+let selectedTab = "adventure";
+let clockHour = 15;
+let clockMinute = 30;
+let speechRate = 1.0;
+
+// Quiz State
+let quizType = "seller"; // 'seller' or 'time'
+let quizQuestions = [];
+let quizCurrentIndex = 0;
+let quizScore = 0;
+let quizTimeLeft = 20;
+let quizTimerInterval = null;
+let currentCorrectAnswer = null;
+let quizHasAnswered = false;
+
+// Audio States
+let activeAudio = null;
+let voiceEngineMode = "google"; // "google" or "local"
+
+// ==========================================
+// 6. 初始化 (On Load)
+// ==========================================
+window.onload = () => {
+    // 載入 localStorage 設定
+    if (localStorage.getItem("trtc_lang")) {
+        currentLang = localStorage.getItem("trtc_lang");
+    }
+    if (localStorage.getItem("trtc_theme") === "dark") {
+        document.documentElement.setAttribute("data-theme", "dark");
+        const themeIcon = document.querySelector("#theme-toggle-btn i");
+        if (themeIcon) themeIcon.className = "fa-solid fa-sun";
+    }
+    if (localStorage.getItem("trtc_speech_rate")) {
+        speechRate = parseFloat(localStorage.getItem("trtc_speech_rate"));
+        const rateSlider = document.getElementById("speech-rate");
+        if (rateSlider) {
+            rateSlider.value = speechRate;
+            document.getElementById("speech-rate-label").textContent = `${speechRate.toFixed(1)}x`;
+        }
+    }
+
+    populateDropdowns();
+    renderTRTCMap();
+    renderVocabWall();
+    renderStampsAlbum();
+    updateClockHands();
+    updateClockReadout();
+    updateUI();
+    
+    // 初始化路程計算
+    calculateJourney();
+    
+    // 設置時鐘拖動事件
+    setupClockDragging();
+    
+    // 動態綁定所有交互事件
+    bindDynamicEvents();
+};
+
+// ==========================================
+// 7. 介面渲染與操作
+// ==========================================
+function populateDropdowns() {
+    const startSelect = document.getElementById("start-station");
+    const endSelect = document.getElementById("end-station");
+    if (!startSelect || !endSelect) return;
+    
+    startSelect.innerHTML = "";
+    endSelect.innerHTML = "";
+
+    stations.forEach((station) => {
+        let opt1 = document.createElement("option");
+        let opt2 = document.createElement("option");
+        opt1.value = opt2.value = station.id;
+        
+        let lineIndicator = "🔴 ";
+        if (station.line === "Blue") lineIndicator = "🔵 ";
+        else if (station.line === "Green") lineIndicator = "🟢 ";
+        else if (station.line === "Orange") lineIndicator = "🟠 ";
+        else if (station.line === "Brown") lineIndicator = "🟤 ";
+        
+        const label = `${lineIndicator}${station.id} ${station.nameZH} (${station.poj} / ${station.nameEN})`;
+        opt1.textContent = opt2.textContent = label;
+        
+        startSelect.appendChild(opt1);
+        endSelect.appendChild(opt2);
+    });
+    
+    // 預設起點：淡水 R28，終點：台北車站 R10
+    const startIdx = stations.findIndex(s => s.id === "R28");
+    const endIdx = stations.findIndex(s => s.id === "R10");
+    startSelect.selectedIndex = startIdx >= 0 ? startIdx : 0;
+    endSelect.selectedIndex = endIdx >= 0 ? endIdx : 7;
+}
+
+function renderTRTCMap() {
+    const redTrack = document.getElementById("svg-rail-track-red");
+    const redTrackDashed = document.getElementById("svg-rail-track-red-dashed");
+    const blueTrack = document.getElementById("svg-rail-track-blue");
+    const blueTrackDashed = document.getElementById("svg-rail-track-blue-dashed");
+    const greenTrack = document.getElementById("svg-rail-track-green");
+    const greenTrackDashed = document.getElementById("svg-rail-track-green-dashed");
+    const orangeTrack = document.getElementById("svg-rail-track-orange");
+    const orangeTrackDashed = document.getElementById("svg-rail-track-orange-dashed");
+    const brownTrack = document.getElementById("svg-rail-track-brown");
+    const brownTrackDashed = document.getElementById("svg-rail-track-brown-dashed");
+    const stationsGroup = document.getElementById("svg-stations-group");
+    
+    if (!redTrack || !blueTrack || !greenTrack || !orangeTrack || !brownTrack || !stationsGroup) return;
+
+    // Helper to generate paths
+    const getPathD = (lineName) => {
+        const lineStations = stations.filter(s => s.line === lineName);
+        if (lineStations.length === 0) return "";
+        let d = `M ${lineStations[0].cx} ${lineStations[0].cy}`;
+        for (let i = 1; i < lineStations.length; i++) {
+            d += ` L ${lineStations[i].cx} ${lineStations[i].cy}`;
+        }
+        return d;
+    };
+
+    redTrack.setAttribute("d", getPathD("Red"));
+    if (redTrackDashed) redTrackDashed.setAttribute("d", getPathD("Red"));
+
+    blueTrack.setAttribute("d", getPathD("Blue"));
+    if (blueTrackDashed) blueTrackDashed.setAttribute("d", getPathD("Blue"));
+
+    greenTrack.setAttribute("d", getPathD("Green"));
+    if (greenTrackDashed) greenTrackDashed.setAttribute("d", getPathD("Green"));
+
+    orangeTrack.setAttribute("d", getPathD("Orange"));
+    if (orangeTrackDashed) orangeTrackDashed.setAttribute("d", getPathD("Orange"));
+
+    brownTrack.setAttribute("d", getPathD("Brown"));
+    if (brownTrackDashed) brownTrackDashed.setAttribute("d", getPathD("Brown"));
+    
+    // 清空站點 DOM 並重繪
+    stationsGroup.innerHTML = "";
+    
+    // To avoid printing duplicate texts for transfer hubs, track rendered coords
+    const renderedCoords = new Set();
+
+    stations.forEach(st => {
+        const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        group.setAttribute("class", `station-point line-${st.line.toLowerCase()}`);
+        group.setAttribute("id", `svg-node-${st.id}`);
+        group.onclick = () => {
+            playTaigiTTS(st.nameZH, st.audio_id || st.poj);
+            highlightNode(st.id);
+        };
+        
+        // 畫小圓點
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", st.cx);
+        circle.setAttribute("cy", st.cy);
+        circle.setAttribute("r", "5.5");
+        group.appendChild(circle);
+        
+        // Check if this coordinate already has a label to avoid overlapping text
+        const coordKey = `${st.cx},${st.cy}`;
+        if (!renderedCoords.has(coordKey)) {
+            renderedCoords.add(coordKey);
+            
+            // 標記站名
+            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            let xOffset = 10;
+            let yOffset = 3.5;
+            let textAnchor = "start";
+            
+            // Simple positioning logic depending on location to look clean
+            if (st.cx > 450) {
+                xOffset = -10;
+                textAnchor = "end";
+            }
+            if (st.id === "R28" || st.id === "G01" || st.id === "BR01") {
+                yOffset = -10;
+                xOffset = 0;
+                textAnchor = "middle";
+            }
+            
+            text.setAttribute("x", st.cx + xOffset);
+            text.setAttribute("y", st.cy + yOffset);
+            text.setAttribute("text-anchor", textAnchor);
+            text.textContent = st.nameZH;
+            group.appendChild(text);
+        }
+        
+        stationsGroup.appendChild(group);
+    });
+}
+
+function highlightNode(stationId) {
+    stations.forEach(st => {
+        const el = document.getElementById(`svg-node-${st.id}`);
+        if (el) el.classList.remove("active");
+    });
+    const activeEl = document.getElementById(`svg-node-${stationId}`);
+    if (activeEl) activeEl.classList.add("active");
+}
+
+// 渲染詞彙學堂
+const LINE_META = {
+    "line-Red":    { label: "淡水信義線 Tamsui–Xinyi",    color: "#e3153a", badge: "🔴" },
+    "line-Blue":   { label: "板南線 Bannan",              color: "#0070bd", badge: "🔵" },
+    "line-Green":  { label: "松山新店線 Songshan–Xindian",color: "#008659", badge: "🟢" },
+    "line-Orange": { label: "中和新蘆線 Zhonghe–Xinlu",   color: "#f8a01c", badge: "🟠" },
+    "line-Brown":  { label: "文湖線 Wenhu",               color: "#c48b2f", badge: "🟤" }
+};
+
+function renderVocabWall(filterType = 'all') {
+    const vocabContainer = document.getElementById("vocab-container");
+    if (!vocabContainer) return;
+    vocabContainer.innerHTML = "";
+
+    const isLine = filterType.startsWith('line-');
+    const lineTypes = Object.keys(LINE_META);
+
+    // Determine which types to show
+    let showTypes;
+    if (filterType === 'all') {
+        showTypes = ['vehicles', 'scene', ...lineTypes];
+    } else if (filterType === 'stations') {
+        showTypes = lineTypes;
+    } else {
+        showTypes = [filterType];
+    }
+
+    showTypes.forEach(t => {
+        const items = vocabData.filter(v => v.type === t);
+        if (!items.length) return;
+
+        // Section header for line groups
+        if (LINE_META[t]) {
+            const hdr = document.createElement('div');
+            hdr.className = 'vocab-line-header';
+            hdr.style.setProperty('--line-color', LINE_META[t].color);
+            hdr.innerHTML = `
+                <span class="vocab-line-badge">${LINE_META[t].badge}</span>
+                <span class="vocab-line-label">${LINE_META[t].label}</span>
+                <span class="vocab-line-count">${items.length} 站</span>
+            `;
+            vocabContainer.appendChild(hdr);
+        } else if (t === 'vehicles' || t === 'scene') {
+            const hdr = document.createElement('div');
+            hdr.className = 'vocab-line-header vocab-generic-header';
+            hdr.innerHTML = t === 'vehicles'
+                ? `<span class="vocab-line-badge">🚗</span><span class="vocab-line-label">交通工具 Vehicles</span><span class="vocab-line-count">${items.length} 詞</span>`
+                : `<span class="vocab-line-badge">🎟️</span><span class="vocab-line-label">捷運場景 Station Scenes</span><span class="vocab-line-count">${items.length} 詞</span>`;
+            vocabContainer.appendChild(hdr);
+        }
+
+        // Card grid wrapper for this section
+        const grid = document.createElement('div');
+        grid.className = 'vocab-section-grid';
+        if (LINE_META[t]) grid.style.setProperty('--line-color', LINE_META[t].color);
+
+        items.forEach(item => {
+            const card = document.createElement("div");
+            card.className = "vocab-card";
+            card.setAttribute("data-type", item.type);
+            const emojiParts = item.emoji.split(' ');
+            const emoji = emojiParts[0];
+            const badge = emojiParts[1] || '';
+            card.onclick = () => {
+                if (item.audio_id && item.audio_id.length) {
+                    playAudioQueue(item.audio_id);
+                } else {
+                    playTaigiTTS(item.zh, item.tw);
+                }
+            };
+            card.innerHTML = `
+                <span class="vocab-emoji">${emoji}</span>
+                <div class="vocab-zh">${item.zh}</div>
+                <div class="vocab-pinyin">${item.tw}</div>
+                <div class="vocab-en">${item.en}</div>
+                ${badge ? `<div class="vocab-id-badge">${badge}</div>` : ''}
+            `;
+            grid.appendChild(card);
+        });
+        vocabContainer.appendChild(grid);
+    });
+}
+
+function filterVocab(type) {
+    document.querySelectorAll(".filter-btn").forEach(btn => btn.classList.remove("active"));
+    const btn = document.getElementById(`btn-filter-${type}`);
+    if (btn) btn.classList.add("active");
+    renderVocabWall(type);
+}
+
+function exportVocabJSON() {
+    const exportData = {
+        title: "台北捷運台語詞彙庫",
+        description: "Taipei MRT Taiwanese (Taigi) Vocabulary — generated by 台北捷運四界走",
+        generated: new Date().toISOString(),
+        source_audio_cdn: `https://chhoetaigi.github.io/KipSutianDataMirror/public/${kipsutianVersionDir}/imtong/sutiau/{id}(1).mp3`,
+        sections: {
+            vehicles: vocabData.filter(v => v.type === 'vehicles').map(({zh,tw,en,emoji}) => ({zh,tw,en,emoji})),
+            scene:    vocabData.filter(v => v.type === 'scene').map(({zh,tw,en,emoji}) => ({zh,tw,en,emoji})),
+            stations: {
+                "line-Red":    vocabData.filter(v => v.type === 'line-Red').map(({zh,tw,en,id,audio_id}) => ({zh,tw,en,id,audio_id})),
+                "line-Blue":   vocabData.filter(v => v.type === 'line-Blue').map(({zh,tw,en,id,audio_id}) => ({zh,tw,en,id,audio_id})),
+                "line-Green":  vocabData.filter(v => v.type === 'line-Green').map(({zh,tw,en,id,audio_id}) => ({zh,tw,en,id,audio_id})),
+                "line-Orange": vocabData.filter(v => v.type === 'line-Orange').map(({zh,tw,en,id,audio_id}) => ({zh,tw,en,id,audio_id})),
+                "line-Brown":  vocabData.filter(v => v.type === 'line-Brown').map(({zh,tw,en,id,audio_id}) => ({zh,tw,en,id,audio_id}))
+            }
+        }
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'taipei_mrt_taigi_vocab.json';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// 變更張數
+function changePassengers(amount) {
+    passengers += amount;
+    if (passengers < 1) passengers = 1;
+    if (passengers > 10) passengers = 10;
+    
+    const countEl = document.getElementById("passenger-count");
+    if (countEl) countEl.textContent = passengers;
+    calculateJourney();
+}
+
+// ==========================================
+// 8. 購票路程計算邏輯 (捷運路網 BFS)
+// ==========================================
+function getRoute(startId, endId) {
+    if (startId === endId) {
+        return [stations.find(s => s.id === startId)];
+    }
+
+    const adj = {};
+    stations.forEach(s => {
+        adj[s.id] = [];
+    });
+
+    // 1. Line adjacencies dynamically constructed from stations database
+    const lines = ["Red", "Blue", "Green", "Orange", "Brown"];
+    lines.forEach(lineName => {
+        const lineStations = stations.filter(s => s.line === lineName);
+        for (let i = 0; i < lineStations.length - 1; i++) {
+            const u = lineStations[i].id;
+            const v = lineStations[i+1].id;
+            if (adj[u] && adj[v]) {
+                adj[u].push(v);
+                adj[v].push(u);
+            }
+        }
+    });
+
+    // 2. Transfer hubs
+    const transfers = [
+        ["R10", "BL12"], // 台北車站
+        ["R11", "G14"],  // 中山
+        ["R08", "G10"],  // 中正紀念堂
+        ["R07", "O06"],  // 東門
+        ["R05", "BR09"], // 大安
+        ["BL11", "G11"], // 西門
+        ["BL14", "O07"], // 忠孝新生
+        ["BL15", "BR10"],// 忠孝復興
+        ["G09", "O05"],  // 古亭
+        ["G15", "O08"],  // 松江南京
+        ["G16", "BR11"], // 南京復興
+        ["R13", "O11"],  // 民權西路
+        ["BL23", "BR24"]  // 南港展覽館
+    ];
+    transfers.forEach(([u, v]) => {
+        if (adj[u] && adj[v]) {
+            adj[u].push(v);
+            adj[v].push(u);
+        }
+    });
+
+    // BFS search
+    const queue = [[startId]];
+    const visited = new Set([startId]);
+
+    while (queue.length > 0) {
+        const path = queue.shift();
+        const node = path[path.length - 1];
+
+        if (node === endId) {
+            return path.map(id => stations.find(s => s.id === id));
+        }
+
+        const neighbors = adj[node] || [];
+        for (const neighbor of neighbors) {
+            if (!visited.has(neighbor)) {
+                visited.add(neighbor);
+                queue.push([...path, neighbor]);
+            }
+        }
+    }
+
+    return [];
+}
+
+function getRouteDescription(route, lang) {
+    const t = uiStrings[lang];
+    if (route.length <= 1) return t.sameStation;
+    
+    // Find segments
+    const segments = [];
+    let currentLine = route[0].line;
+    let currentStart = route[0];
+    
+    for (let i = 1; i < route.length; i++) {
+        if (route[i].line !== currentLine) {
+            segments.push({
+                line: currentLine,
+                start: currentStart,
+                end: route[i-1],
+                transferTo: route[i]
+            });
+            currentLine = route[i].line;
+            currentStart = route[i];
+        }
+    }
+    segments.push({
+        line: currentLine,
+        start: currentStart,
+        end: route[route.length - 1],
+        transferTo: null
+    });
+    
+    if (segments.length === 1) {
+        if (currentLine === "Red") return t.redLineText;
+        if (currentLine === "Blue") return t.blueLineText;
+        if (currentLine === "Green") return t.greenLineText;
+        if (currentLine === "Orange") return t.orangeLineText;
+        return t.brownLineText;
+    }
+    
+    // Multi-line transfer
+    let desc = lang === "ZH" ? "跨線轉乘 (" : "Transfer (";
+    for (let i = 0; i < segments.length - 1; i++) {
+        const transferFrom = segments[i].end;
+        const transferTo = segments[i].transferTo;
+        
+        let stationName = "";
+        if (lang === "ZH") {
+            stationName = transferFrom.nameZH === transferTo.nameZH 
+                ? transferFrom.nameZH 
+                : `${transferFrom.nameZH} ↔ ${transferTo.nameZH}`;
+        } else {
+            stationName = transferFrom.nameEN === transferTo.nameEN 
+                ? transferFrom.nameEN 
+                : `${transferFrom.nameEN} ↔ ${transferTo.nameEN}`;
+        }
+        
+        if (i > 0) desc += " + ";
+        desc += stationName;
+    }
+    desc += ") 🔄";
+    return desc;
+}
+
+function calculateJourney() {
+    const startSelect = document.getElementById("start-station");
+    const endSelect = document.getElementById("end-station");
+    if (!startSelect || !endSelect) return;
+
+    const startId = startSelect.value;
+    const endId = endSelect.value;
+    
+    // 地圖節點樣式重置
+    stations.forEach(s => {
+        const el = document.getElementById(`svg-node-${s.id}`);
+        if (el) el.classList.remove("active", "in-route");
+    });
+    
+    // 高亮起迄點
+    const startNode = document.getElementById(`svg-node-${startId}`);
+    if (startNode) startNode.classList.add("active");
+    const endNode = document.getElementById(`svg-node-${endId}`);
+    if (endNode) endNode.classList.add("active");
+    
+    const t = uiStrings[currentLang];
+    
+    // 同站防呆
+    if (startId === endId) {
+        document.getElementById("info-direction").textContent = t.sameStation;
+        document.getElementById("info-duration").textContent = "0 mins";
+        document.getElementById("info-cost").textContent = "NT$ 0";
+        document.getElementById("info-platform").textContent = "-";
+        const playBtn = document.getElementById("play-journey-btn");
+        if (playBtn) playBtn.disabled = true;
+        const box = document.getElementById("journey-sentence-box");
+        if (box) box.classList.remove("active");
+        
+        // 隱藏火車標誌
+        const train = document.getElementById("train-marker");
+        if (train) train.classList.remove("active");
+        
+        // 移除高亮路徑 SVG
+        const activePath = document.getElementById("svg-rail-active-path");
+        if (activePath) activePath.setAttribute("d", "");
+        return;
+    }
+    
+    const chosenRoute = getRoute(startId, endId);
+    const stops = chosenRoute.length - 1;
+    
+    // 高亮中途站點
+    for (let i = 1; i < chosenRoute.length - 1; i++) {
+        const midNode = document.getElementById(`svg-node-${chosenRoute[i].id}`);
+        if (midNode) midNode.classList.add("in-route");
+    }
+    
+    // 繪製高亮 SVG 軌道線
+    let activeD = `M ${chosenRoute[0].cx} ${chosenRoute[0].cy}`;
+    for (let i = 1; i < chosenRoute.length; i++) {
+        activeD += ` L ${chosenRoute[i].cx} ${chosenRoute[i].cy}`;
+    }
+    const activePath = document.getElementById("svg-rail-active-path");
+    if (activePath) {
+        activePath.setAttribute("d", "");
+        setTimeout(() => {
+            activePath.setAttribute("d", activeD);
+        }, 10);
+    }
+    
+    // 票價計算 (起步 20元，按距離分段)
+    let cost = 20;
+    if (stops > 5) {
+        const steps = Math.floor((stops - 5) / 3);
+        cost += (steps + 1) * 5;
+    }
+    if (cost > 60) cost = 60;
+    const totalFare = cost * passengers;
+    
+    // 時間計算 (平均一站 2 分鐘，轉乘加 3 分鐘)
+    const segmentsCount = chosenRoute.reduce((acc, curr, idx, arr) => {
+        if (idx === 0) return 1;
+        return curr.line !== arr[idx - 1].line ? acc + 1 : acc;
+    }, 1);
+    const transfersCount = segmentsCount - 1;
+    const durationMinutes = (stops * 2) + (transfersCount * 3);
+    const durationHrs = Math.floor(durationMinutes / 60);
+    const durationMins = durationMinutes % 60;
+    
+    // 候車月台判斷
+    let platformNum = 1;
+    const startSt = chosenRoute[0];
+    const nextSt = chosenRoute[1];
+    
+    if (startSt.line === "Red") {
+        platformNum = nextSt.seq < startSt.seq ? 1 : 2; // seq遞減是向象山(1)，遞增是向淡水(2)
+    } else if (startSt.line === "Blue") {
+        platformNum = nextSt.seq > startSt.seq ? 3 : 4; // seq遞增是向南港展覽館(3)，遞減是向頂埔(4)
+    } else if (startSt.line === "Green") {
+        platformNum = nextSt.seq > startSt.seq ? 1 : 2; // seq遞增是向松山(1)，遞減是向新店(2)
+    } else if (startSt.line === "Orange") {
+        platformNum = nextSt.seq > startSt.seq ? 3 : 4; // seq遞增是向迴龍(3)，遞減是向南勢角(4)
+    } else if (startSt.line === "Brown") {
+        platformNum = nextSt.seq > startSt.seq ? 1 : 2; // seq遞增是向南港展覽館(1)，遞減是向動物園(2)
+    }
+    
+    // 行車路線說明
+    const dirText = getRouteDescription(chosenRoute, currentLang);
+    
+    // 更新網頁欄位
+    document.getElementById("info-direction").textContent = dirText;
+    
+    const durationStr = durationHrs > 0 
+        ? t.durationFormat.replace("{0}", durationHrs).replace("{1}", durationMins)
+        : t.mins.replace("{0}", durationMins);
+    document.getElementById("info-duration").textContent = durationStr;
+    document.getElementById("info-cost").textContent = t.priceUnit.replace("{0}", totalFare);
+    document.getElementById("info-platform").textContent = t.platformNum.replace("{0}", platformNum);
+    
+    const playBtn = document.getElementById("play-journey-btn");
+    if (playBtn) playBtn.disabled = false;
+    
+    animateTrainOnMap(chosenRoute);
+}
+
+// 讓車廂在 SVG 地圖上循序移動
+function animateTrainOnMap(route) {
+    const train = document.getElementById("train-marker");
+    if (!train) return;
+    train.classList.add("active");
+    
+    let currentStop = 0;
+    
+    function moveNext() {
+        if (currentStop >= route.length) return;
+        const targetSt = route[currentStop];
+        // 由於地圖寬度與高度適配，使用百分比定位
+        train.style.left = `${(targetSt.cx / 700) * 100}%`;
+        train.style.top = `${(targetSt.cy / 600) * 100}%`;
+        
+        currentStop++;
+        setTimeout(moveNext, 350);
+    }
+    
+    moveNext();
+}
+
+// ==========================================
+// 9. 語音朗讀合成模組 (Speech Synthesis)
+// ==========================================
+let activeQueueAudio = null;
+
+const taigiAudioMap = {
+    // 數字
+    "一_quantity": "1", // tsi̍t (一張)
+    "一_digit": "2",    // it
+    "二": "44",
+    "三": "162",
+    "四": "1408",
+    "五": "565",
+    "六": "578",
+    "七": "40",
+    "八": "48",
+    "九": "41",
+    "十": "54",
+    "兩": "3582",      // nn̄g
+    "百": "2585",      // pah
+    "千": "180",       // tshian
+    "零": "12091",     // lîng (homophone 龍)
+    
+    // 時間與單位
+    "早起": "2517",
+    "下晡": "432",
+    "暗時": "9598",
+    "點": "12451",
+    "半": "1386",
+    "分": "584",
+    "點鐘": "12472",
+    "分鐘": "768",
+    "箍": "10682",     // 元
+    
+    // 詞彙
+    "捷運": "7397",
+    "公車": "23445",
+    "鐵馬": "13148",
+    "渡輪": "8538",     // tōo-tsûn (渡船)
+    "計程車": "5537",
+    "高鐵": "24834",
+    "火車": "1242",
+    "月台": "24426",
+    "車票": "3459",
+    "司機": "1608",
+    "軌道": "5547",
+    "口": "183",
+    "賣": "11390",
+    "票": "7683",
+    "車": "3394",
+    "換": "8406",
+    "閘": "10257",
+    "門": "4494",
+    "站": "6427",
+    
+    // 銜接與文法
+    "我": "3139",
+    "欲": "7469",
+    "去": "1395",
+    "買": "9037",
+    "張": "7179",
+    "開車": "9170",
+    "發車": "9170",
+    "搭車": "3022",     // tsē (坐車 - will play tsē + tshia dynamically)
+    "攏總": "12790",
+    "佇": "2858",
+    "第": "7691",
+    "第一": "7693",
+    "等": "8817",
+    
+    // 回饋
+    "著": "8981",
+    "矣": "3336",
+    "毋著": "1089",
+    "喔": "8172",
+    "對": "10442",
+    "到": "3592",
+    "同": "2115"
+};
+
+// 數字轉實體音檔陣列
+function numberToAudioSegments(num, isQuantity = false) {
+    let segments = [];
+    if (num >= 1000) {
+        const thousands = Math.floor(num / 1000);
+        if (thousands === 1) segments.push(taigiAudioMap["一_digit"]);
+        else if (thousands === 2) segments.push(taigiAudioMap["兩"]);
+        else segments.push(taigiAudioMap[numberToKanjiDigit(thousands)]);
+        segments.push(taigiAudioMap["千"]);
+        num %= 1000;
+    }
+    if (num >= 100) {
+        const h = Math.floor(num / 100);
+        if (h === 1) segments.push(taigiAudioMap["一_digit"]);
+        else if (h === 2) segments.push(taigiAudioMap["兩"]);
+        else segments.push(taigiAudioMap[numberToKanjiDigit(h)]);
+        segments.push(taigiAudioMap["百"]);
+        num %= 100;
+    }
+    if (num > 0) {
+        if (num < 10) {
+            if (num === 2 && isQuantity) segments.push(taigiAudioMap["兩"]);
+            else if (num === 1 && isQuantity) segments.push(taigiAudioMap["一_quantity"]);
+            else segments.push(taigiAudioMap[numberToKanjiDigit(num)]);
+        } else if (num === 10) {
+            segments.push(taigiAudioMap["十"]);
+        } else if (num < 20) {
+            segments.push(taigiAudioMap["十"]);
+            segments.push(taigiAudioMap[numberToKanjiDigit(num % 10)]);
+        } else {
+            const tens = Math.floor(num / 10);
+            const units = num % 10;
+            segments.push(taigiAudioMap[numberToKanjiDigit(tens)]);
+            segments.push(taigiAudioMap["十"]);
+            if (units > 0) {
+                if (units === 1) segments.push(taigiAudioMap["一_digit"]);
+                else segments.push(taigiAudioMap[numberToKanjiDigit(units)]);
+            }
+        }
+    }
+    return segments;
+}
+
+function numberToKanjiDigit(digit) {
+    const map = { 1: "一_digit", 2: "二", 3: "三", 4: "四", 5: "五", 6: "六", 7: "七", 8: "八", 9: "九" };
+    return map[digit] || "";
+}
+
+// 數字台語讀音轉換庫
+const digitsZH = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
+const digitsPOJ = ["lîng", "chi̍t", "jī/nn̄g", "sann", "sì", "gōo", "la̍k", "tshit", "peh", "káu", "tsa̍p"];
+
+// 將數字轉換成台語漢字字串
+function numberToTaigiText(num) {
+    if (num === 0) return "零";
+    if (num <= 10) return num === 2 ? "兩" : digitsZH[num];
+    if (num < 20) {
+        const units = num % 10;
+        return "十" + (units > 0 ? (units === 2 ? "二" : digitsZH[units]) : "");
+    }
+    const tens = Math.floor(num / 10);
+    const units = num % 10;
+    let result = (tens === 2 ? "兩" : digitsZH[tens]) + "十";
+    if (units > 0) {
+        result += (units === 2 ? "二" : digitsZH[units]);
+    }
+    return result;
+}
+
+// 將數字轉換成台羅拼音 (POJ)
+function numberToTaigiPOJ(num, isQuantity = false) {
+    const pojDigits = ["lîng", "chi̍t", "jī", "sann", "sì", "gōo", "la̍k", "tshit", "peh", "káu", "tsa̍p"];
+    if (num === 0) return "lîng";
+    if (num <= 10) {
+        if (num === 2 && isQuantity) return "nn̄g";
+        return pojDigits[num];
+    }
+    if (num < 20) {
+        const units = num % 10;
+        return "tsa̍p" + (units > 0 ? "-" + (units === 2 ? "jī" : pojDigits[units]) : "");
+    }
+    const tens = Math.floor(num / 10);
+    const units = num % 10;
+    let result = (tens === 2 ? "jī" : pojDigits[tens]) + "-tsa̍p";
+    if (units > 0) {
+        result += "-" + (units === 2 ? "jī" : pojDigits[units]);
+    }
+    return result;
+}
+
+// 序數第一到第十讀法 (例如月台、車廂)
+function ordinalToTaigiText(num) {
+    const digits = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
+    return "第" + digits[num];
+}
+
+// 價格台語漢字金額讀法
+function costToTaigiText(cost) {
+    if (cost === 0) return "零箍";
+    if (cost < 100) return numberToTaigiText(cost) + "箍";
+    
+    let result = "";
+    let tempCost = cost;
+    
+    if (tempCost >= 1000) {
+        const thousands = Math.floor(tempCost / 1000);
+        result += (thousands === 2 ? "兩" : digitsZH[thousands]) + "千";
+        tempCost = tempCost % 1000;
+        if (tempCost > 0 && tempCost < 100) result += "零";
+    }
+    if (tempCost >= 100) {
+        const hundreds = Math.floor(tempCost / 100);
+        result += (hundreds === 2 ? "兩" : digitsZH[hundreds]) + "百";
+        tempCost = tempCost % 100;
+        if (tempCost > 0 && tempCost < 10) result += "零";
+    }
+    if (tempCost > 0) {
+        result += numberToTaigiText(tempCost);
+    }
+    return result + "箍";
+}
+
+// 價格台羅拼音 (POJ) 金額讀法
+function costToTaigiPOJ(cost) {
+    if (cost === 0) return "lîng kho͘";
+    const pojDigitsList = ["lîng", "chi̍t", "jī", "sann", "sì", "gōo", "la̍k", "tshit", "peh", "káu", "tsa̍p"];
+    let parts = [];
+    let tempCost = cost;
+    
+    if (tempCost >= 1000) {
+        const thousands = Math.floor(tempCost / 1000);
+        const prefix = thousands === 2 ? "nn̄g" : pojDigitsList[thousands];
+        parts.push(prefix + " tsian");
+        tempCost = tempCost % 1000;
+        if (tempCost > 0 && tempCost < 100) parts.push("lîng");
+    }
+    if (tempCost >= 100) {
+        const hundreds = Math.floor(tempCost / 100);
+        const prefix = hundreds === 2 ? "nn̄g" : pojDigitsList[hundreds];
+        parts.push(prefix + " pah");
+        tempCost = tempCost % 100;
+        if (tempCost > 0 && tempCost < 10) parts.push("lîng");
+    }
+    if (tempCost > 0) {
+        parts.push(numberToTaigiPOJ(tempCost, false));
+    }
+    return parts.join(" ") + " kho͘";
+}
+
+// 時間轉實體音檔陣列
+function timeToAudioSegments(timeStr) {
+    const parts = timeStr.split(":");
+    const hour = parseInt(parts[0]);
+    const min = parseInt(parts[1]);
+    
+    let segments = [];
+    let periodKey = "早起";
+    let displayHour = hour;
+    if (hour >= 12 && hour < 18) {
+        periodKey = "下晡";
+        displayHour = hour === 12 ? 12 : hour - 12;
+    } else if (hour >= 18) {
+        periodKey = "暗時";
+        displayHour = hour === 12 ? 12 : hour - 12;
+    } else if (hour === 0) {
+        displayHour = 12;
+    }
+    
+    segments.push(taigiAudioMap[periodKey]);
+    if (displayHour === 2) segments.push(taigiAudioMap["兩"]);
+    else segments.push(taigiAudioMap[numberToKanjiDigit(displayHour)]);
+    segments.push(taigiAudioMap["點"]);
+    
+    if (min === 30) {
+        segments.push(taigiAudioMap["半"]);
+    } else if (min > 0) {
+        segments = segments.concat(numberToAudioSegments(min, false));
+        segments.push(taigiAudioMap["分"]);
+    }
+    return segments;
+}
+
+// 音訊佇列非同步播放器
+let queueCancelToken = 0;
+function playAudioQueue(audioIds, fallbackText) {
+    queueCancelToken++;
+    const token = queueCancelToken;
+
+    if (activeAudio) { activeAudio.pause(); activeAudio = null; }
+    if (activeQueueAudio) { activeQueueAudio.pause(); activeQueueAudio = null; }
+    if ('speechSynthesis' in window) { window.speechSynthesis.cancel(); }
+
+    const speed = speechRate;
+    const cleanIds = audioIds.filter(id => id);
+    
+    if (cleanIds.length === 0) {
+        playOfflineVoiceFallback(fallbackText);
+        return;
+    }
+
+    updateBadge("google");
+    
+    // Pre-create all audio elements
+    const audioElements = cleanIds.map(id => {
+        let fullId = id;
+        if (fullId && !String(fullId).includes("(")) {
+            fullId = fullId + "(1)";
+        }
+        const cdnUrl = `https://chhoetaigi.github.io/KipSutianDataMirror/public/${kipsutianVersionDir}/imtong/sutiau/${fullId}.mp3`;
+        const audio = new Audio(cdnUrl);
+        audio.preload = "auto";
+        audio.playbackRate = speed;
+        return { id: fullId, audio: audio, unlocked: false };
+    });
+
+    // Unlock all audio elements inside this user gesture context
+    audioElements.forEach(item => {
+        const p = item.audio.play();
+        if (p !== undefined) {
+            p.then(() => {
+                item.audio.pause();
+                item.audio.currentTime = 0;
+                item.unlocked = true;
+            }).catch(err => {
+                console.log(`Audio pre-unlock failed for ${item.id}:`, err);
+            });
+        }
+    });
+
+    let index = 0;
+    function playNext() {
+        if (token !== queueCancelToken) return;
+        if (index >= audioElements.length) return;
+        
+        const item = audioElements[index];
+        activeQueueAudio = item.audio;
+        item.audio.playbackRate = speed; // Ensure correct rate
+        
+        item.audio.onended = () => {
+            if (token !== queueCancelToken) return;
+            index++;
+            playNext();
+        };
+        
+        item.audio.onerror = (e) => {
+            console.warn(`Audio playback error for ID ${item.id}, trying next...`, e);
+            if (token !== queueCancelToken) return;
+            index++;
+            playNext();
+        };
+        
+        item.audio.play().catch(err => {
+            console.warn(`Audio play failed for ID ${item.id}, trying next...`, err);
+            if (token !== queueCancelToken) return;
+            index++;
+            playNext();
+        });
+    }
+    
+    // Slight delay to allow pre-unlock promises to clear
+    setTimeout(() => {
+        if (token === queueCancelToken) {
+            playNext();
+        }
+    }, 50);
+}
+
+function playTaigiTTS(phraseText, audioIds) {
+    let ids = [];
+    if (Array.isArray(audioIds)) {
+        ids = audioIds;
+    } else if (typeof audioIds === 'string') {
+        if (/\d+/.test(audioIds)) {
+            ids = [audioIds];
+        } else {
+            const cleanPhrase = phraseText.replace(/[【】]/g, '');
+            if (cleanPhrase === "閘門") {
+                ids = [taigiAudioMap["閘"], taigiAudioMap["門"]];
+            } else if (cleanPhrase === "賣票機" || cleanPhrase === "售票機") {
+                ids = [taigiAudioMap["賣"], taigiAudioMap["票"]];
+            } else if (cleanPhrase === "捷運站") {
+                ids = [taigiAudioMap["捷運"], taigiAudioMap["站"]];
+            } else if (cleanPhrase === "著矣") {
+                ids = [taigiAudioMap["著"], taigiAudioMap["矣"]];
+            } else if (cleanPhrase === "毋著喔") {
+                ids = [taigiAudioMap["毋著"], taigiAudioMap["喔"]];
+            } else {
+                const mappedId = taigiAudioMap[cleanPhrase];
+                if (mappedId) ids = [mappedId];
+            }
+        }
+    }
+    
+    if (ids.length > 0) {
+        playAudioQueue(ids, phraseText);
+    } else {
+        playOfflineVoiceFallback(phraseText);
+    }
+}
+
+function playOfflineVoiceFallback(text) {
+    if (!('speechSynthesis' in window)) return;
+    
+    updateBadge("local");
+    
+    // 同音字轉換
+    let phoneticText = text;
+    const sortedKeys = Object.keys(twHomophones).sort((a, b) => b.length - a.length);
+    sortedKeys.forEach(key => {
+        phoneticText = phoneticText.replace(new RegExp(key, 'g'), twHomophones[key]);
+    });
+    
+    console.log(`Speech synthesis translation: "${text}" -> "${phoneticText}"`);
+    
+    const utterance = new SpeechSynthesisUtterance(phoneticText);
+    utterance.lang = "zh-TW"; // 使用繁體中文TTS引擎
+    utterance.rate = speechRate;
+    
+    const voices = window.speechSynthesis.getVoices();
+    const twVoice = voices.find(v => v.lang.includes("zh-TW"));
+    if (twVoice) utterance.voice = twVoice;
+    
+    window.speechSynthesis.speak(utterance);
+}
+
+function updateBadge(mode) {
+    const badge = document.getElementById("speech-engine-badge");
+    if (!badge) return;
+    if (mode === "google") {
+        badge.innerText = "🔊 實體台語 (教育部)";
+        badge.className = "speech-badge badge-google";
+    } else {
+        badge.innerText = "🔊 本地合成 (擬真備援)";
+        badge.className = "speech-badge badge-local";
+    }
+}
+
+// 播放完整購票語音句型
+function playFullJourneyAudio() {
+    const startId = document.getElementById("start-station").value;
+    const endId = document.getElementById("end-station").value;
+    const depTimeSelect = document.getElementById("departure-time");
+    if (!depTimeSelect) return;
+    const depTimeText = depTimeSelect.options[depTimeSelect.selectedIndex].text;
+    
+    const startStation = stations.find(s => s.id === startId);
+    const endStation = stations.find(s => s.id === endId);
+    if (!startStation || !endStation) return;
+    
+    const chosenRoute = getRoute(startId, endId);
+    const stops = chosenRoute.length - 1;
+    
+    // 取得轉乘站點
+    const transferStations = [];
+    for (let i = 0; i < chosenRoute.length - 1; i++) {
+        if (chosenRoute[i].line !== chosenRoute[i+1].line) {
+            transferStations.push(chosenRoute[i+1]);
+        }
+    }
+    
+    let transferZHText = "";
+    let transferTaigiText = "";
+    let transferPOJText = "";
+    if (transferStations.length > 0) {
+        const transferNames = transferStations.map(s => s.nameZH).join("、");
+        const transferPOJs = transferStations.map(s => s.poj).join(", ");
+        transferZHText = `，在 ${transferNames} 轉車`;
+        transferTaigiText = `，佇${transferNames}換車`;
+        transferPOJText = `, tī ${transferPOJs} uānn-chhia`;
+    }
+    
+    // 計算票價
+    let cost = 20;
+    if (stops > 5) {
+        const steps = Math.floor((stops - 5) / 3);
+        cost += (steps + 1) * 5;
+    }
+    if (cost > 60) cost = 60;
+    const totalFare = cost * passengers;
+    
+    // 月台
+    let platform = 1;
+    const nextSt = chosenRoute[1];
+    
+    if (startStation.line === "Red") {
+        platform = nextSt.seq < startStation.seq ? 1 : 2;
+    } else if (startStation.line === "Blue") {
+        platform = nextSt.seq > startStation.seq ? 3 : 4;
+    } else if (startStation.line === "Green") {
+        platform = nextSt.seq > startStation.seq ? 1 : 2;
+    } else if (startStation.line === "Orange") {
+        platform = nextSt.seq > startStation.seq ? 3 : 4;
+    } else if (startStation.line === "Brown") {
+        platform = nextSt.seq > startStation.seq ? 1 : 2;
+    }
+    
+    // 字幕漢字
+    const passengerZH = numberToTaigiText(passengers) + "張";
+    const costZH = costToTaigiText(totalFare);
+    
+    const rawTimeZH = depTimeText.split(" ")[0]; // 早上/下午/晚上
+    let periodZH = "早起";
+    if (rawTimeZH === "下午" || rawTimeZH === "Afternoon") periodZH = "下晡";
+    else if (rawTimeZH === "晚上" || rawTimeZH === "Evening") periodZH = "暗時";
+    
+    const hourMin = depTimeSelect.value.split(":");
+    const h = parseInt(hourMin[0]);
+    const displayH = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+    const hourZH = (displayH === 2 ? "兩" : numberToTaigiText(displayH)) + "點";
+    const minZH = hourMin[1] === "30" ? "半" : (hourMin[1] === "00" ? "" : numberToTaigiText(parseInt(hourMin[1])) + "分");
+    
+    const taigiSpeechText = `我欲對${startStation.nameZH}去${endStation.nameZH}，買${passengerZH}捷運票，${periodZH}${hourZH}${minZH}開車${transferTaigiText}，攏總${costZH}。佇${ordinalToTaigiText(platform)}月台等車。`;
+    
+    // 2. 產出台語音軌 ID 陣列
+    let audioSegments = [];
+    audioSegments.push(taigiAudioMap["我"]);
+    audioSegments.push(taigiAudioMap["欲"]);
+    audioSegments.push(taigiAudioMap["對"]);
+    
+    // 起點車站名語音 (陣列拼接!)
+    if (Array.isArray(startStation.audio_id)) {
+        audioSegments = audioSegments.concat(startStation.audio_id);
+    } else {
+        audioSegments.push(startStation.audio_id || taigiAudioMap[startStation.nameZH]);
+    }
+    
+    audioSegments.push(taigiAudioMap["去"]);
+    
+    // 終點車站名語音 (陣列拼接!)
+    if (Array.isArray(endStation.audio_id)) {
+        audioSegments = audioSegments.concat(endStation.audio_id);
+    } else {
+        audioSegments.push(endStation.audio_id || taigiAudioMap[endStation.nameZH]);
+    }
+    
+    audioSegments.push(taigiAudioMap["買"]);
+    audioSegments = audioSegments.concat(numberToAudioSegments(passengers, true));
+    audioSegments.push(taigiAudioMap["張"]);
+    audioSegments.push(taigiAudioMap["捷運"]);
+    audioSegments.push(taigiAudioMap["票"]);
+    
+    // 時間語音
+    const m = parseInt(hourMin[1]);
+    let periodHour = h;
+    let periodKey = "早起";
+    if (h >= 12 && h < 18) {
+        periodKey = "下晡";
+        periodHour = h === 12 ? 12 : h - 12;
+    } else if (h >= 18) {
+        periodKey = "暗時";
+        periodHour = h === 12 ? 12 : h - 12;
+    } else if (h === 0) {
+        periodHour = 12;
+    }
+    audioSegments.push(taigiAudioMap[periodKey]);
+    
+    if (periodHour === 2) {
+        audioSegments.push(taigiAudioMap["兩"]);
+    } else {
+        audioSegments.push(taigiAudioMap[numberToKanjiDigit(periodHour)]);
+    }
+    audioSegments.push(taigiAudioMap["點"]);
+    
+    if (m === 30) {
+        audioSegments.push(taigiAudioMap["半"]);
+    } else if (m > 0) {
+        audioSegments = audioSegments.concat(numberToAudioSegments(m, false));
+        audioSegments.push(taigiAudioMap["分"]);
+    }
+    
+    audioSegments.push(taigiAudioMap["開車"]);
+    
+    // 轉乘語音
+    if (transferStations.length > 0) {
+        audioSegments.push(taigiAudioMap["佇"]);
+        transferStations.forEach(tSt => {
+            if (Array.isArray(tSt.audio_id)) {
+                audioSegments = audioSegments.concat(tSt.audio_id);
+            } else {
+                audioSegments.push(tSt.audio_id || taigiAudioMap[tSt.nameZH]);
+            }
+        });
+        audioSegments.push(taigiAudioMap["換"]);
+        audioSegments.push(taigiAudioMap["車"]);
+    }
+    
+    audioSegments.push(taigiAudioMap["攏總"]);
+    audioSegments = audioSegments.concat(numberToAudioSegments(totalFare, false));
+    audioSegments.push(taigiAudioMap["箍"]);
+    
+    audioSegments.push(taigiAudioMap["佇"]);
+    audioSegments.push(taigiAudioMap["第"]);
+    audioSegments.push(taigiAudioMap[numberToKanjiDigit(platform)]);
+    audioSegments.push(taigiAudioMap["月台"]);
+    audioSegments.push(taigiAudioMap["等"]);
+    audioSegments.push(taigiAudioMap["車"]);
+    
+    // 字幕對照台羅 (POJ)
+    const passengerPOJ = getPassengerPOJ(passengers);
+    const hStr = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+    const periodPOJ = h < 12 ? "tsá-khí" : (h < 18 ? "ē-po͘" : "am-sî");
+    const hourPOJStr = hStr === 2 ? "nn̄g tiám" : numberToTaigiPOJ(hStr) + " tiám";
+    const minPOJStr = m === 30 ? " puàn" : (m === 0 ? "" : " " + numberToTaigiPOJ(m) + " hun");
+    
+    const pinyinBreakdown = `Ùi ${startStation.poj} kàu ${endStation.poj}, chia̍t-ūn ${passengerPOJ} phiò, ${periodPOJ} ${hourPOJStr}${minPOJStr} khui-chhia${transferPOJText}, lóng-chóng ${totalFare} khōo. tī tē-${platform} gue̍h-tâi.`;
+    const mandarinZHText = `從 ${startStation.nameZH} 到 ${endStation.nameZH}，捷運票 ${passengers} 張，${depTimeText.split(' ')[0]} ${depTimeSelect.value} 發車${transferZHText}，總共 ${totalFare} 元。請到第 ${platform} 月台候車。`;
+    
+    // 顯示字幕框
+    const sentenceBox = document.getElementById("journey-sentence-box");
+    if (sentenceBox) {
+        document.getElementById("journey-sentence-zh").textContent = mandarinZHText;
+        document.getElementById("journey-sentence-tw").textContent = taigiSpeechText + " \n(" + pinyinBreakdown + ")";
+        sentenceBox.classList.add("active");
+    }
+    
+    // 播放語音
+    playTaigiTTS(taigiSpeechText, audioSegments);
+}
+
+function getPassengerPOJ(num) {
+    const map = {
+        1: "chi̍t tiunn", 2: "nn̄g tiunn", 3: "sann tiunn", 4: "sì tiunn", 5: "gōo tiunn",
+        6: "la̍k tiunn", 7: "tshit tiunn", 8: "peh tiunn", 9: "káu tiunn", 10: "tsa̍p tiunn"
+    };
+    return map[num] || "";
+}
+
+function playJourney() {
+    playFullJourneyAudio();
+}
+
+// ==========================================
+// 10. 互動式時鐘與時間調整
+// ==========================================
+function setupClockDragging() {
+    const clock = document.getElementById("interactive-clock");
+    if (!clock) return;
+    let isDragging = false;
+    
+    function handlePointer(e) {
+        if (!isDragging && e.type === "pointermove") return;
+        
+        const rect = clock.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        const dx = e.clientX - centerX;
+        const dy = e.clientY - centerY;
+        
+        let angleRad = Math.atan2(dy, dx);
+        let angleDeg = angleRad * (180 / Math.PI) + 90;
+        if (angleDeg < 0) angleDeg += 360;
+        
+        // 微調至最近的分鐘 (5分鐘為一格)
+        let mins = Math.round(angleDeg / 6) % 60;
+        mins = Math.round(mins / 5) * 5 % 60;
+        
+        clockMinute = mins;
+        
+        updateClockHands();
+        updateClockReadout();
+    }
+    
+    clock.addEventListener("pointerdown", (e) => {
+        isDragging = true;
+        clock.setPointerCapture(e.pointerId);
+        handlePointer(e);
+    });
+    
+    clock.addEventListener("pointermove", handlePointer);
+    
+    const stopDrag = (e) => {
+        isDragging = false;
+    };
+    
+    clock.addEventListener("pointerup", stopDrag);
+    clock.addEventListener("pointercancel", stopDrag);
+}
+
+function updateClockHands() {
+    const hourHand = document.getElementById("clock-hour-hand");
+    const minHand = document.getElementById("clock-min-hand");
+    if (!hourHand || !minHand) return;
+    
+    const minAngle = clockMinute * 6;
+    const hourAngle = ((clockHour % 12) * 30) + (clockMinute * 0.5);
+    
+    hourHand.style.transform = `translateX(-50%) rotate(${hourAngle}deg)`;
+    minHand.style.transform = `translateX(-50%) rotate(${minAngle}deg)`;
+}
+
+function updateClockReadout() {
+    const digitalEl = document.getElementById("clock-time-digital");
+    const twEl = document.getElementById("clock-time-tw");
+    if (!digitalEl || !twEl) return;
+
+    const formattedTime = `${clockHour.toString().padStart(2, '0')}:${clockMinute.toString().padStart(2, '0')}`;
+    digitalEl.textContent = formattedTime;
+    
+    const period = clockHour < 12 ? "早起" : (clockHour < 18 ? "下晡" : "暗時");
+    const periodEN = clockHour < 12 ? "tsá-khí" : (clockHour < 18 ? "ē-po͘" : "am-sî");
+    
+    const displayHour = clockHour > 12 ? clockHour - 12 : (clockHour === 0 ? 12 : clockHour);
+    const hourText = displayHour === 2 ? "兩點" : numberToTaigiText(displayHour) + "點";
+    const hourPOJ = (displayHour === 2 ? "nn̄g" : digitsPOJ[displayHour]) + " tiám";
+    
+    let minText = "";
+    let minPOJ = "";
+    if (clockMinute === 30) {
+        minText = "半";
+        minPOJ = " puàn";
+    } else if (clockMinute > 0) {
+        minText = numberToTaigiText(clockMinute) + "分";
+        minPOJ = " " + getMinutePOJ(clockMinute) + " hun";
+    }
+    
+    const twReadout = `${period}${hourText}${minText}`;
+    const twPinyin = `${periodEN} ${hourPOJ}${minPOJ}`;
+    
+    twEl.innerHTML = `${twReadout}<br><small>${twPinyin}</small>`;
+}
+
+function getMinutePOJ(min) {
+    if (min === 15) return "tsa̍p-gōo";
+    if (min === 45) return "sì-tsa̍p-gōo";
+    return min.toString();
+}
+
+function adjustClockTime(amount) {
+    let totalMins = clockHour * 60 + clockMinute + amount;
+    if (totalMins < 0) totalMins += 24 * 60;
+    totalMins = totalMins % (24 * 60);
+    
+    clockHour = Math.floor(totalMins / 60);
+    clockMinute = totalMins % 60;
+    
+    updateClockHands();
+    updateClockReadout();
+}
+
+function setClockTime(h, m) {
+    clockHour = h;
+    clockMinute = m;
+    updateClockHands();
+    updateClockReadout();
+    
+    const clock = document.getElementById("interactive-clock");
+    if (clock) {
+        clock.classList.add("bounce-effect");
+        setTimeout(() => clock.classList.remove("bounce-effect"), 600);
+    }
+}
+
+function playClockAudio() {
+    const timeStr = `${clockHour.toString().padStart(2, '0')}:${clockMinute.toString().padStart(2, '0')}`;
+    const timeSegments = timeToAudioSegments(timeStr);
+    
+    const period = clockHour < 12 ? "早起" : (clockHour < 18 ? "下晡" : "暗時");
+    const displayHour = clockHour > 12 ? clockHour - 12 : (clockHour === 0 ? 12 : clockHour);
+    
+    const hourText = displayHour === 2 ? "兩點" : numberToTaigiText(displayHour) + "點";
+    let minText = "";
+    if (clockMinute === 30) {
+        minText = "半";
+    } else if (clockMinute > 0) {
+        minText = numberToTaigiText(clockMinute) + "分";
+    }
+    const text = period + hourText + minText;
+    
+    playTaigiTTS(text, timeSegments);
+}
+
+// ==========================================
+// 11. 檢定挑戰模式 (Quiz Engine)
+// ==========================================
+function startQuiz(type) {
+    quizType = type;
+    quizScore = 0;
+    quizCurrentIndex = 0;
+    quizQuestions = [];
+    
+    document.getElementById("quiz-welcome-panel").style.display = "none";
+    document.getElementById("quiz-result-panel").style.display = "none";
+    document.getElementById("quiz-game-panel").classList.add("active");
+    
+    generateQuizPool();
+    loadQuizQuestion();
+}
+
+function generateQuizPool() {
+    for (let i = 0; i < 10; i++) {
+        if (quizType === "seller") {
+            const randomStation = stations[Math.floor(Math.random() * stations.length)];
+            const randomTickets = Math.floor(Math.random() * 5) + 1; // 1~5張
+            
+            const speechText = `我想欲去${randomStation.nameZH}，買${numberToTaigiText(randomTickets)}張票。`;
+            const questionPrompt = "請問語音中，旅客想欲去叨位？買幾張車票？";
+            
+            // 實體台語音標拼接
+            let audioSegments = [];
+            audioSegments.push(taigiAudioMap["我"]);
+            audioSegments.push(taigiAudioMap["欲"]);
+            audioSegments.push(taigiAudioMap["去"]);
+            
+            if (Array.isArray(randomStation.audio_id)) {
+                audioSegments = audioSegments.concat(randomStation.audio_id);
+            } else {
+                audioSegments.push(randomStation.audio_id || taigiAudioMap[randomStation.nameZH]);
+            }
+            
+            audioSegments.push(taigiAudioMap["買"]);
+            audioSegments = audioSegments.concat(numberToAudioSegments(randomTickets, true));
+            audioSegments.push(taigiAudioMap["張"]);
+            audioSegments.push(taigiAudioMap["票"]);
+            
+            const correctAnswer = `${randomStation.nameZH}，${randomTickets}張票`;
+            
+            let options = [correctAnswer];
+            while (options.length < 4) {
+                const altStation = stations[Math.floor(Math.random() * stations.length)];
+                const altTickets = Math.floor(Math.random() * 5) + 1;
+                const altOption = `${altStation.nameZH}，${altTickets}張票`;
+                if (!options.includes(altOption)) {
+                    options.push(altOption);
+                }
+            }
+            options.sort(() => Math.random() - 0.5);
+            
+            quizQuestions.push({
+                speech: speechText,
+                speechPOJ: audioSegments,
+                prompt: questionPrompt,
+                options: options,
+                answer: correctAnswer,
+                stationId: randomStation.id
+            });
+            
+        } else {
+            const randomHour = Math.floor(Math.random() * 12) + 1; // 1~12點
+            const minsPresets = [0, 15, 30, 45];
+            const randomMin = minsPresets[Math.floor(Math.random() * minsPresets.length)];
+            const period = Math.random() > 0.5 ? "下晡" : "早起";
+            
+            const hourText = randomHour === 2 ? "兩點" : numberToTaigiText(randomHour) + "點";
+            const minText = randomMin === 30 ? "半" : (randomMin === 0 ? "" : numberToTaigiText(randomMin) + "分");
+            
+            const speechText = `捷運動車${period}${hourText}${minText}開車。`;
+            const questionPrompt = "請問語音中，列車是幾點開車？";
+            
+            // 實體台語音標拼接
+            let audioSegments = [];
+            audioSegments.push(taigiAudioMap["捷運"]);
+            audioSegments.push(taigiAudioMap["車"]);
+            
+            let h = randomHour;
+            if (period === "下晡") {
+                h = randomHour === 12 ? 12 : randomHour + 12;
+            } else if (period === "早起") {
+                h = randomHour === 12 ? 0 : randomHour;
+            }
+            
+            const timeSegments = timeToAudioSegments(`${h.toString().padStart(2, '0')}:${randomMin.toString().padStart(2, '0')}`);
+            audioSegments = audioSegments.concat(timeSegments);
+            audioSegments.push(taigiAudioMap["開車"]);
+            
+            const digitalTime = `${period} ${randomHour.toString().padStart(2, '0')}:${randomMin.toString().padStart(2, '0')}`;
+            const correctAnswer = digitalTime;
+            
+            let options = [correctAnswer];
+            while (options.length < 4) {
+                const altHour = Math.floor(Math.random() * 12) + 1;
+                const altMin = minsPresets[Math.floor(Math.random() * minsPresets.length)];
+                const altPeriod = Math.random() > 0.5 ? "下晡" : "早起";
+                const altOption = `${altPeriod} ${altHour.toString().padStart(2, '0')}:${altMin.toString().padStart(2, '0')}`;
+                if (!options.includes(altOption)) {
+                    options.push(altOption);
+                }
+            }
+            options.sort(() => Math.random() - 0.5);
+            
+            const rewardStation = stations[Math.floor(Math.random() * stations.length)];
+            
+            quizQuestions.push({
+                speech: speechText,
+                speechPOJ: audioSegments,
+                prompt: questionPrompt,
+                options: options,
+                answer: correctAnswer,
+                stationId: rewardStation.id
+            });
+        }
+    }
+}
+
+function loadQuizQuestion() {
+    quizHasAnswered = false;
+    const feedback = document.getElementById("quiz-feedback-text");
+    if (feedback) {
+        feedback.textContent = "";
+        feedback.className = "quiz-feedback";
+    }
+    
+    const q = quizQuestions[quizCurrentIndex];
+    currentCorrectAnswer = q.answer;
+    
+    document.getElementById("quiz-progress-text").textContent = `問題 ${quizCurrentIndex + 1} / 10`;
+    document.getElementById("quiz-question-prompt").textContent = q.prompt;
+    
+    const container = document.getElementById("quiz-options-container");
+    if (container) {
+        container.innerHTML = "";
+        q.options.forEach((opt) => {
+            const btn = document.createElement("button");
+            btn.className = "option-btn";
+            btn.textContent = opt;
+            btn.onclick = () => submitQuizAnswer(opt, btn);
+            container.appendChild(btn);
+        });
+    }
+    
+    setTimeout(() => {
+        playTaigiTTS(q.speech, q.speechPOJ);
+    }, 400);
+    
+    quizTimeLeft = 20;
+    document.getElementById("quiz-timer-display").innerHTML = `<i class="fa-solid fa-hourglass-half animate-pulse"></i> 剩餘: ${quizTimeLeft}s`;
+    
+    const bar = document.getElementById("quiz-timer-bar");
+    if (bar) {
+        bar.style.transition = "none";
+        bar.style.width = "100%";
+        setTimeout(() => {
+            bar.style.transition = "width 20s linear";
+            bar.style.width = "0%";
+        }, 50);
+    }
+    
+    clearInterval(quizTimerInterval);
+    quizTimerInterval = setInterval(() => {
+        quizTimeLeft--;
+        document.getElementById("quiz-timer-display").innerHTML = `<i class="fa-solid fa-hourglass-half"></i> 剩餘: ${quizTimeLeft}s`;
+        
+        if (quizTimeLeft <= 0) {
+            clearInterval(quizTimerInterval);
+            handleQuizTimeout();
+        }
+    }, 1000);
+}
+
+function playQuizQuestionAudio() {
+    if (quizQuestions[quizCurrentIndex]) {
+        playTaigiTTS(quizQuestions[quizCurrentIndex].speech, quizQuestions[quizCurrentIndex].speechPOJ);
+    }
+}
+
+function submitQuizAnswer(selectedOpt, selectedBtn) {
+    if (quizHasAnswered) return;
+    quizHasAnswered = true;
+    clearInterval(quizTimerInterval);
+    
+    const bar = document.getElementById("quiz-timer-bar");
+    if (bar) {
+        const computedWidth = window.getComputedStyle(bar).width;
+        bar.style.transition = "none";
+        bar.style.width = computedWidth;
+    }
+    
+    document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+    
+    const feedback = document.getElementById("quiz-feedback-text");
+    const gameCard = document.getElementById("panel-quiz");
+    
+    if (selectedOpt === currentCorrectAnswer) {
+        quizScore++;
+        feedback.textContent = "👍 讚喔！答對矣！ (Tio̍h ah!)";
+        feedback.className = "quiz-feedback success";
+        selectedBtn.classList.add("correct");
+        
+        if (gameCard) {
+            gameCard.classList.add("bounce-effect");
+            setTimeout(() => gameCard.classList.remove("bounce-effect"), 600);
+        }
+        triggerConfettiParticles();
+        playTaigiTTS("著矣", "tio̍h-ah");
+    } else {
+        feedback.textContent = "❌ 毋對喔！加油！ (M̄-tio̍h--ooh!)";
+        feedback.className = "quiz-feedback error";
+        selectedBtn.classList.add("wrong");
+        
+        document.querySelectorAll(".option-btn").forEach(btn => {
+            if (btn.textContent === currentCorrectAnswer) {
+                btn.classList.add("correct");
+            }
+        });
+        
+        if (gameCard) {
+            gameCard.classList.add("shake");
+            setTimeout(() => gameCard.classList.remove("shake"), 500);
+        }
+        playTaigiTTS("毋著喔", "m̄-tio̍h-ooh");
+    }
+    
+    document.getElementById("quiz-score-display").innerHTML = `<i class="fa-solid fa-star" style="color: var(--accent);"></i> 分數: ${quizScore}`;
+    setTimeout(nextQuizQuestion, 1800);
+}
+
+function handleQuizTimeout() {
+    if (quizHasAnswered) return;
+    quizHasAnswered = true;
+    
+    document.querySelectorAll(".option-btn").forEach(btn => {
+        btn.disabled = true;
+        if (btn.textContent === currentCorrectAnswer) {
+            btn.classList.add("correct");
+        }
+    });
+    
+    const feedback = document.getElementById("quiz-feedback-text");
+    if (feedback) {
+        feedback.textContent = "⏰ 時間到！毋對喔！";
+        feedback.className = "quiz-feedback error";
+    }
+    
+    playTaigiTTS("毋著喔", "m̄-tio̍h-ooh");
+    setTimeout(nextQuizQuestion, 1800);
+}
+
+function nextQuizQuestion() {
+    quizCurrentIndex++;
+    if (quizCurrentIndex < 10) {
+        loadQuizQuestion();
+    } else {
+        showQuizResults();
+    }
+}
+
+function showQuizResults() {
+    document.getElementById("quiz-game-panel").classList.remove("active");
+    document.getElementById("quiz-result-panel").style.display = "block";
+    document.getElementById("quiz-result-score").textContent = `您的最終得分：${quizScore} / 10 題`;
+    
+    const rewardsBox = document.getElementById("quiz-rewards-box");
+    const stampDisplay = document.getElementById("quiz-unlocked-stamp-display");
+    
+    if (quizScore >= 8) {
+        rewardsBox.style.display = "block";
+        
+        let unlockedStamps = JSON.parse(localStorage.getItem("trtc_stamps")) || [];
+        const lockedStations = stations.filter(st => !unlockedStamps.includes(st.id));
+        
+        let newStampStation = null;
+        if (lockedStations.length > 0) {
+            newStampStation = lockedStations[Math.floor(Math.random() * lockedStations.length)];
+            unlockedStamps.push(newStampStation.id);
+            localStorage.setItem("trtc_stamps", JSON.stringify(unlockedStamps));
+        } else {
+            newStampStation = stations[Math.floor(Math.random() * stations.length)];
+        }
+        
+        stampDisplay.innerHTML = `
+            <div class="stamp-item unlocked">
+                <span class="stamp-icon">${newStampStation.stamp}</span>
+                <span class="stamp-name">${newStampStation.nameZH}站</span>
+                <span class="stamp-city-zh">${newStampStation.nameEN}</span>
+            </div>
+            <p style="font-weight:700; color:var(--text); margin-top:10px;">恭喜解鎖【${newStampStation.nameZH}站】紀念印章！已加入您的集章冊！</p>
+        `;
+        
+        triggerConfettiParticles();
+        renderStampsAlbum();
+    } else {
+        rewardsBox.style.display = "none";
+        stampDisplay.innerHTML = "";
+        
+        const failText = document.createElement("p");
+        failText.className = "fail-temporary-txt";
+        failText.style.margin = "20px 0";
+        failText.style.color = "var(--text-light)";
+        failText.style.fontWeight = "700";
+        failText.textContent = "💡 還差一點點！需要答對 8 題以上才能解鎖印章喔，再接再厲！";
+        
+        const resultPanel = document.getElementById("quiz-result-panel");
+        resultPanel.insertBefore(failText, rewardsBox);
+    }
+}
+
+function resetQuizInterface() {
+    clearInterval(quizTimerInterval);
+    document.getElementById("quiz-result-panel").style.display = "none";
+    document.getElementById("quiz-game-panel").classList.remove("active");
+    document.getElementById("quiz-welcome-panel").style.display = "block";
+    
+    document.querySelectorAll(".fail-temporary-txt").forEach(el => el.remove());
+}
+
+// ==========================================
+// 12. 紀念章集章冊展示
+// ==========================================
+function renderStampsAlbum() {
+    const container = document.getElementById("stamps-container");
+    if (!container) return;
+    container.innerHTML = "";
+    
+    const unlockedStamps = JSON.parse(localStorage.getItem("trtc_stamps")) || [];
+    
+    stations.forEach(st => {
+        const isUnlocked = unlockedStamps.includes(st.id);
+        
+        const stampEl = document.createElement("div");
+        stampEl.className = `stamp-item ${isUnlocked ? 'unlocked' : 'locked'}`;
+        stampEl.title = isUnlocked ? `點擊聆聽【${st.nameZH}】台語發音` : "尚未解鎖";
+        
+        stampEl.onclick = () => {
+            if (isUnlocked) {
+                playTaigiTTS(st.nameZH, st.audio_id || st.poj);
+                stampEl.classList.add("bounce-effect");
+                setTimeout(() => stampEl.classList.remove("bounce-effect"), 600);
+            }
+        };
+        
+        stampEl.innerHTML = `
+            <span class="stamp-icon">${isUnlocked ? st.stamp : "🔒"}</span>
+            <span class="stamp-name">${st.nameZH}</span>
+            <span class="stamp-city-zh">${st.id}</span>
+        `;
+        
+        container.appendChild(stampEl);
+    });
+}
+
+// ==========================================
+// 13. 微互動粒子效果 (Confetti Particles)
+// ==========================================
+function triggerConfettiParticles() {
+    const mainElement = document.querySelector("main");
+    if (!mainElement) return;
+    
+    for (let i = 0; i < 40; i++) {
+        const particle = document.createElement("div");
+        particle.className = "confetti-particle";
+        particle.style.left = `${Math.random() * 100}%`;
+        particle.style.bottom = "10%";
+        particle.style.backgroundColor = `hsl(${Math.random() * 360}, 90%, 60%)`;
+        particle.style.setProperty("--x", `${(Math.random() - 0.5) * 300}px`);
+        particle.style.setProperty("--rot", `${Math.random() * 360}deg`);
+        
+        mainElement.appendChild(particle);
+        setTimeout(() => particle.remove(), 1200);
+    }
+}
+
+// ==========================================
+// 14. 系統主題與語系切換
+// ==========================================
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute("data-theme");
+    const targetTheme = currentTheme === "dark" ? "light" : "dark";
+    
+    document.documentElement.setAttribute("data-theme", targetTheme);
+    localStorage.setItem("trtc_theme", targetTheme);
+    
+    const icon = document.querySelector("#theme-toggle-btn i");
+    if (icon) icon.className = targetTheme === "dark" ? "fa-solid fa-sun" : "fa-solid fa-moon";
+}
+
+function toggleLanguage() {
+    currentLang = currentLang === "ZH" ? "EN" : "ZH";
+    localStorage.setItem("trtc_lang", currentLang);
+    
+    updateUI();
+    calculateJourney();
+    updateClockReadout();
+}
+
+function updateSpeechRate(val) {
+    speechRate = parseFloat(val);
+    localStorage.setItem("trtc_speech_rate", speechRate);
+    updateSpeechRateLabel(val);
+}
+
+function updateSpeechRateLabel(val) {
+    const label = document.getElementById("speech-rate-label");
+    if (label) {
+        label.textContent = `${parseFloat(val).toFixed(1)}x`;
+    }
+}
+
+function switchTab(tabId) {
+    selectedTab = tabId;
+    
+    document.querySelectorAll(".tab-trigger").forEach(btn => btn.classList.remove("active"));
+    const tabBtn = document.getElementById(`tab-${tabId}-btn`);
+    if (tabBtn) tabBtn.classList.add("active");
+    
+    document.querySelectorAll(".tab-panel").forEach(panel => panel.classList.remove("active"));
+    const panel = document.getElementById(`panel-${tabId}`);
+    if (panel) panel.classList.add("active");
+    
+    if (tabId === "stamps") {
+        renderStampsAlbum();
+    }
+}
+
+function updateUI() {
+    const t = uiStrings[currentLang];
+    
+    document.getElementById("ui-title").innerHTML = `<i class="fa-solid fa-train-subway"></i> ${t.title}`;
+    document.getElementById("ui-subtitle").textContent = t.subtitle;
+    document.getElementById("lang-toggle-text").textContent = t.langBtnText;
+    
+    document.getElementById("ui-tab-adventure").textContent = t.tabAdventure;
+    document.getElementById("ui-tab-vocab").textContent = t.tabVocab;
+    document.getElementById("ui-tab-time").textContent = t.tabTime;
+    document.getElementById("ui-tab-quiz").textContent = t.tabQuiz;
+    document.getElementById("ui-tab-stamps").textContent = t.tabStamps;
+    
+    document.getElementById("ui-booth-title").innerHTML = `<i class="fa-solid fa-ticket"></i> ${t.boothTitle}`;
+    document.getElementById("ui-label-from").textContent = t.labelFrom;
+    document.getElementById("ui-label-to").textContent = t.labelTo;
+    document.getElementById("ui-label-class").textContent = t.labelClass;
+    document.getElementById("ui-label-passengers").textContent = t.labelPassengers;
+    document.getElementById("ui-label-dep-time").textContent = t.labelDepTime;
+    
+    document.getElementById("ui-info-direction").textContent = t.infoDirection;
+    document.getElementById("ui-info-duration").textContent = t.infoDuration;
+    document.getElementById("ui-info-cost").textContent = t.infoCost;
+    document.getElementById("ui-info-platform").textContent = t.infoPlatform;
+    
+    document.getElementById("ui-btn-play-journey").textContent = t.btnPlayJourney;
+    document.getElementById("ui-map-title").innerHTML = `<i class="fa-solid fa-compass"></i> ${t.mapTitle}`;
+    
+    document.getElementById("ui-vocab-title").innerHTML = `<i class="fa-solid fa-book-open"></i> ${t.vocabTitle}`;
+    
+    document.getElementById("ui-clock-title").innerHTML = `<i class="fa-solid fa-circle-notch"></i> ${t.clockTitle}`;
+    document.getElementById("ui-time-learn-title").innerHTML = `<i class="fa-solid fa-graduation-cap"></i> ${t.timeLearnTitle}`;
+    document.getElementById("ui-label-adjust-time").textContent = t.labelAdjustTime;
+    document.getElementById("ui-label-preset-time").textContent = t.labelPresetTime;
+    document.getElementById("ui-btn-play-clock").textContent = t.btnPlayClock;
+    
+    document.getElementById("ui-quiz-title").innerHTML = `<i class="fa-solid fa-gamepad"></i> ${t.quizTitle}`;
+    document.getElementById("ui-quiz-welcome-title").textContent = t.quizWelcomeTitle;
+    document.getElementById("ui-quiz-welcome-desc").textContent = t.quizWelcomeDesc;
+    document.getElementById("ui-quiz-seller-name").textContent = t.quizSellerName;
+    document.getElementById("ui-quiz-time-name").textContent = t.quizTimeName;
+    document.getElementById("ui-btn-retry").textContent = t.btnRetry;
+    
+    document.getElementById("ui-stamps-title").innerHTML = `<i class="fa-solid fa-stamp"></i> ${t.stampsTitle}`;
+    document.getElementById("ui-stamps-desc").textContent = t.stampsDesc;
+}
+
+// 動態綁定點擊與事件
+function bindDynamicEvents() {
+    const bindClick = (id, callback) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener("click", callback);
+            el.removeAttribute("onclick");
+        }
+    };
+    const bindChange = (id, callback) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener("change", callback);
+            el.removeAttribute("onchange");
+        }
+    };
+
+    // 頂部控制列
+    bindClick("theme-toggle-btn", toggleTheme);
+    bindClick("lang-toggle-btn", toggleLanguage);
+
+    // 主分頁頁籤
+    bindClick("tab-adventure-btn", () => switchTab('adventure'));
+    bindClick("tab-vocab-btn", () => switchTab('vocab'));
+    bindClick("tab-time-btn", () => switchTab('time'));
+    bindClick("tab-quiz-btn", () => switchTab('quiz'));
+    bindClick("tab-stamps-btn", () => switchTab('stamps'));
+
+    // 售票亭起訖站與下拉選單
+    bindChange("start-station", calculateJourney);
+    bindChange("end-station", calculateJourney);
+    bindChange("train-class", calculateJourney);
+    bindChange("departure-time", calculateJourney);
+    bindClick("btn-dec-passengers", () => changePassengers(-1));
+    bindClick("btn-inc-passengers", () => changePassengers(1));
+    bindClick("play-journey-btn", playJourney);
+
+    // 詞彙學堂篩選按鈕
+    bindClick("btn-filter-all",      () => filterVocab('all'));
+    bindClick("btn-filter-vehicles", () => filterVocab('vehicles'));
+    bindClick("btn-filter-stations", () => filterVocab('stations'));
+    bindClick("btn-filter-red",      () => filterVocab('line-Red'));
+    bindClick("btn-filter-blue",     () => filterVocab('line-Blue'));
+    bindClick("btn-filter-green",    () => filterVocab('line-Green'));
+    bindClick("btn-filter-orange",   () => filterVocab('line-Orange'));
+    bindClick("btn-filter-brown",    () => filterVocab('line-Brown'));
+    bindClick("btn-export-vocab",    () => exportVocabJSON());
+
+    // 時間微調按鈕
+    bindClick("btn-clock-dec-1h", () => adjustClockTime(-60));
+    bindClick("btn-clock-dec-15m", () => adjustClockTime(-15));
+    bindClick("btn-clock-inc-15m", () => adjustClockTime(15));
+    bindClick("btn-clock-inc-1h", () => adjustClockTime(60));
+
+    // 時間快捷預設按鈕
+    bindClick("btn-clock-preset-8-0", () => setClockTime(8, 0));
+    bindClick("btn-clock-preset-10-30", () => setClockTime(10, 30));
+    bindClick("btn-clock-preset-12-15", () => setClockTime(12, 15));
+    bindClick("btn-clock-preset-15-30", () => setClockTime(15, 30));
+    bindClick("btn-clock-preset-17-45", () => setClockTime(17, 45));
+    bindClick("btn-clock-preset-20-0", () => setClockTime(20, 0));
+
+    // 播放時間語音按鈕
+    bindClick("play-clock-btn", playClockAudio);
+
+    // 檢定挑戰按鈕
+    bindClick("btn-quiz-seller", () => startQuiz('seller'));
+    bindClick("btn-quiz-time", () => startQuiz('time'));
+    bindClick("quiz-audio-play-btn", playQuizQuestionAudio);
+    bindClick("quiz-retry-btn", resetQuizInterface);
+}
