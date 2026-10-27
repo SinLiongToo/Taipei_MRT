@@ -642,7 +642,7 @@ function renderVocabWall(filterType = 'all') {
             const badge = emojiParts[1] || '';
             card.onclick = () => {
                 if (item.audio_id && item.audio_id.length) {
-                    playAudioQueue(item.audio_id);
+                    playAudioQueue(item.audio_id, item.zh);
                 } else {
                     playTaigiTTS(item.zh, item.tw);
                 }
@@ -1243,89 +1243,98 @@ function timeToAudioSegments(timeStr) {
     return segments;
 }
 
-// 音訊佇列非同步播放器
+// 全域共用 Audio 播放器實例 (維護單一音訊解鎖管道)
+let globalQueuePlayer = null;
 let queueCancelToken = 0;
+
 function playAudioQueue(audioIds, fallbackText) {
     queueCancelToken++;
     const token = queueCancelToken;
 
-    if (activeAudio) { activeAudio.pause(); activeAudio = null; }
-    if (activeQueueAudio) { activeQueueAudio.pause(); activeQueueAudio = null; }
-    if ('speechSynthesis' in window) { window.speechSynthesis.cancel(); }
+    // 停止先前的播放
+    if (globalQueuePlayer) {
+        try {
+            globalQueuePlayer.pause();
+            globalQueuePlayer.onended = null;
+            globalQueuePlayer.onerror = null;
+        } catch (e) {}
+    }
+    if (activeAudio) {
+        try { activeAudio.pause(); } catch (e) {}
+        activeAudio = null;
+    }
+    if ('speechSynthesis' in window) {
+        try { window.speechSynthesis.cancel(); } catch (e) {}
+    }
 
-    const speed = speechRate;
-    const cleanIds = audioIds.filter(id => id);
+    const speed = speechRate || 1.0;
+    const cleanIds = (audioIds || []).filter(id => id);
     
     if (cleanIds.length === 0) {
-        playOfflineVoiceFallback(fallbackText);
+        if (fallbackText) playOfflineVoiceFallback(fallbackText);
         return;
     }
 
     updateBadge("google");
-    
-    // Pre-create all audio elements
-    const audioElements = cleanIds.map(id => {
-        let fullId = id;
-        if (fullId && !String(fullId).includes("(")) {
+
+    const urls = cleanIds.map(id => {
+        let fullId = String(id).trim();
+        if (fullId && !fullId.includes("(")) {
             fullId = fullId + "(1)";
         }
-        const cdnUrl = `https://chhoetaigi.github.io/KipSutianDataMirror/public/${kipsutianVersionDir}/imtong/sutiau/${fullId}.mp3`;
-        const audio = new Audio(cdnUrl);
-        audio.preload = "auto";
-        audio.playbackRate = speed;
-        return { id: fullId, audio: audio, unlocked: false };
+        return `https://chhoetaigi.github.io/KipSutianDataMirror/public/${kipsutianVersionDir}/imtong/sutiau/${fullId}.mp3`;
     });
 
-    // Unlock all audio elements inside this user gesture context
-    audioElements.forEach(item => {
-        const p = item.audio.play();
-        if (p !== undefined) {
-            p.then(() => {
-                item.audio.pause();
-                item.audio.currentTime = 0;
-                item.unlocked = true;
-            }).catch(err => {
-                console.log(`Audio pre-unlock failed for ${item.id}:`, err);
-            });
-        }
-    });
-
+    if (!globalQueuePlayer) {
+        globalQueuePlayer = new Audio();
+    }
+    const player = globalQueuePlayer;
     let index = 0;
+    let anySuccess = false;
+
     function playNext() {
         if (token !== queueCancelToken) return;
-        if (index >= audioElements.length) return;
-        
-        const item = audioElements[index];
-        activeQueueAudio = item.audio;
-        item.audio.playbackRate = speed; // Ensure correct rate
-        
-        item.audio.onended = () => {
-            if (token !== queueCancelToken) return;
-            index++;
-            playNext();
-        };
-        
-        item.audio.onerror = (e) => {
-            console.warn(`Audio playback error for ID ${item.id}, trying next...`, e);
-            if (token !== queueCancelToken) return;
-            index++;
-            playNext();
-        };
-        
-        item.audio.play().catch(err => {
-            console.warn(`Audio play failed for ID ${item.id}, trying next...`, err);
-            if (token !== queueCancelToken) return;
-            index++;
-            playNext();
-        });
-    }
-    
-    // Slight delay to allow pre-unlock promises to clear
-    setTimeout(() => {
-        if (token === queueCancelToken) {
-            playNext();
+        if (index >= urls.length) {
+            if (!anySuccess && fallbackText) {
+                console.warn("All audio segments failed, falling back to TTS:", fallbackText);
+                playOfflineVoiceFallback(fallbackText);
+            }
+            return;
         }
-    }, 50);
+
+        const currentUrl = urls[index];
+        player.src = currentUrl;
+        player.playbackRate = speed;
+
+        player.onended = () => {
+            if (token !== queueCancelToken) return;
+            anySuccess = true;
+            index++;
+            playNext();
+        };
+
+        player.onerror = (e) => {
+            console.warn(`Audio playback error for ${currentUrl}, trying next...`, e);
+            if (token !== queueCancelToken) return;
+            index++;
+            playNext();
+        };
+
+        const playPromise = player.play();
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
+                anySuccess = true;
+            }).catch(err => {
+                console.warn(`Audio play rejected for ${currentUrl}:`, err);
+                if (token !== queueCancelToken) return;
+                index++;
+                playNext();
+            });
+        }
+    }
+
+    // 在使用者手勢 (Click Event) 同步上下文中直接觸發 play()
+    playNext();
 }
 
 function playTaigiTTS(phraseText, audioIds) {

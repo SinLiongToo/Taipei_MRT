@@ -1,5 +1,6 @@
 import os
 import base64
+import re
 
 def compile_project():
     print("Starting compilation...")
@@ -25,16 +26,16 @@ def compile_project():
         
     # Inject CSS
     css_tag = f'<style>\n{css}\n</style>'
-    html = html.replace('<link rel="stylesheet" href="style.css">', css_tag)
+    html = re.sub(r'<link\s+rel="stylesheet"\s+href="style\.css(?:\?[^"]*)?">', lambda _: css_tag, html)
     
     # Inject JS
     js_tag = f'<script>\n{js}\n</script>'
-    html = html.replace('<script src="app.js"></script>', js_tag)
+    html = re.sub(r'<script\s+src="app\.js(?:\?[^"]*)?"></script>', lambda _: js_tag, html)
     
     # Write index_single.html
     with open(output_single, "w", encoding="utf-8") as f:
         f.write(html)
-    print(f"Successfully compiled {output_single} ({len(html)} bytes)")
+    print(f"Successfully compiled {output_single} ({len(html.encode('utf-8'))} bytes)")
     
     # Create Blogger base64 embed
     b64_data = base64.b64encode(html.encode("utf-8")).decode("utf-8")
