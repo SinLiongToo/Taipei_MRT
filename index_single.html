@@ -1735,10 +1735,11 @@ footer p {
     </main>
 
     <!-- Footer -->
-    <footer>
+    <footer class="footer">
         <p>© 2026 台北捷運四界走 — 台語交通互動教學網頁. 台北捷運交叉路網版.</p>
-        <p style="font-size: 0.75rem; margin-top: 5px; font-weight: 700;">@史秀里冊房 Tō͘ Sìn-liông 製作 2026</p>
+        <p style="font-size: 0.75rem; margin-top: 5px; font-weight: 700;">@史秀里冊房 Tō͘ Sìn-liông 製作 2026 · <a href="https://github.com/SinLiongToo/Taipei_MRT" target="_blank" rel="noopener noreferrer" style="color: var(--primary); text-decoration: underline;">GitHub 原始碼庫</a></p>
         <p style="font-size: 0.75rem; margin-top: 5px;">本系統採用中華民國教育部《臺灣台語常用詞辭典》官方真人發音音訊與 Web Speech API 擬真備援技術作為語音引擎.</p>
+        <p style="font-size: 0.72rem; margin-top: 6px; color: var(--text-light); opacity: 0.85;"><i class="fa-solid fa-clock-rotate-left"></i> 最後更新日期 (Last Updated): 2026-10-30</p>
     </footer>
 
     <script>
@@ -2987,33 +2988,82 @@ function timeToAudioSegments(timeStr) {
     return segments;
 }
 
-// 全域共用 Audio 播放器實例 (維護單一音訊解鎖管道)
-let globalQueuePlayer = null;
-let queueCancelToken = 0;
+// ==========================================
+// Web Audio API Seamless Gapless Player (with Silence Trimming & Speed)
+// ==========================================
+let audioCtx = null;
+const audioBufferCache = new Map();
+let currentQueueToken = 0;
+let activeSourceNodes = [];
 
-function playAudioQueue(audioIds, fallbackText) {
-    queueCancelToken++;
-    const token = queueCancelToken;
+function getAudioContext() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    return audioCtx;
+}
 
-    // 停止先前的播放
-    if (globalQueuePlayer) {
-        try {
-            globalQueuePlayer.pause();
-            globalQueuePlayer.onended = null;
-            globalQueuePlayer.onerror = null;
-        } catch (e) {}
+// 去除教育部辭典 MP3 錄音頭尾靜音段（約 15ms~50ms），讓多音節連音平滑流暢
+function trimAudioBuffer(ctx, buffer, threshold = 0.015) {
+    const channelData = buffer.getChannelData(0);
+    const len = channelData.length;
+    let start = 0;
+    let end = len - 1;
+
+    while (start < len && Math.abs(channelData[start]) < threshold) start++;
+    while (end > start && Math.abs(channelData[end]) < threshold) end--;
+
+    const margin = Math.floor(buffer.sampleRate * 0.015);
+    start = Math.max(0, start - margin);
+    end = Math.min(len, end + margin);
+
+    const trimmedLength = end - start;
+    if (trimmedLength <= 0) return buffer;
+
+    const trimmed = ctx.createBuffer(buffer.numberOfChannels, trimmedLength, buffer.sampleRate);
+    for (let c = 0; c < buffer.numberOfChannels; c++) {
+        trimmed.copyToChannel(buffer.getChannelData(c).subarray(start, end), c);
     }
-    if (activeAudio) {
-        try { activeAudio.pause(); } catch (e) {}
-        activeAudio = null;
-    }
-    if ('speechSynthesis' in window) {
+    return trimmed;
+}
+
+// 平行抓取與記憶體緩衝解碼
+async function fetchAndDecodeAudio(id) {
+    const cleanId = String(id).includes('(') ? String(id).trim() : `${String(id).trim()}(1)`;
+    if (audioBufferCache.has(cleanId)) return audioBufferCache.get(cleanId);
+
+    const url = `https://chhoetaigi.github.io/KipSutianDataMirror/public/${kipsutianVersionDir}/imtong/sutiau/${cleanId}.mp3`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status} for ${cleanId}`);
+    const arrayBuffer = await res.arrayBuffer();
+    const ctx = getAudioContext();
+    const decoded = await ctx.decodeAudioData(arrayBuffer);
+    const trimmed = trimAudioBuffer(ctx, decoded);
+    audioBufferCache.set(cleanId, trimmed);
+    return trimmed;
+}
+
+// 零延遲連續音訊排程器 (支援 0.5x - 2.5x 變速)
+async function playAudioQueue(audioIds, fallbackText) {
+    currentQueueToken++;
+    const token = currentQueueToken;
+    const speed = speechRate || 1.0;
+
+    // 停止先前的音訊節點
+    activeSourceNodes.forEach(node => {
+        try { node.stop(); } catch(e) {}
+    });
+    activeSourceNodes = [];
+
+    // 遵照 web-speech-tts / taiwanese-moe-audio 規範：只有在 speaking || pending 時才 cancel
+    if ('speechSynthesis' in window && (window.speechSynthesis.speaking || window.speechSynthesis.pending)) {
         try { window.speechSynthesis.cancel(); } catch (e) {}
     }
 
-    const speed = speechRate || 1.0;
-    const cleanIds = (audioIds || []).filter(id => id);
-    
+    const cleanIds = (audioIds || []).filter(Boolean);
     if (cleanIds.length === 0) {
         if (fallbackText) playOfflineVoiceFallback(fallbackText);
         return;
@@ -3021,64 +3071,28 @@ function playAudioQueue(audioIds, fallbackText) {
 
     updateBadge("google");
 
-    const urls = cleanIds.map(id => {
-        let fullId = String(id).trim();
-        if (fullId && !fullId.includes("(")) {
-            fullId = fullId + "(1)";
-        }
-        return `https://chhoetaigi.github.io/KipSutianDataMirror/public/${kipsutianVersionDir}/imtong/sutiau/${fullId}.mp3`;
-    });
+    try {
+        const ctx = getAudioContext();
+        // 平行預載解碼所有音軌
+        const buffers = await Promise.all(cleanIds.map(id => fetchAndDecodeAudio(id)));
+        if (token !== currentQueueToken) return;
 
-    if (!globalQueuePlayer) {
-        globalQueuePlayer = new Audio();
-    }
-    const player = globalQueuePlayer;
-    let index = 0;
-    let anySuccess = false;
-
-    function playNext() {
-        if (token !== queueCancelToken) return;
-        if (index >= urls.length) {
-            if (!anySuccess && fallbackText) {
-                console.warn("All audio segments failed, falling back to TTS:", fallbackText);
-                playOfflineVoiceFallback(fallbackText);
-            }
-            return;
-        }
-
-        const currentUrl = urls[index];
-        player.src = currentUrl;
-        player.playbackRate = speed;
-
-        player.onended = () => {
-            if (token !== queueCancelToken) return;
-            anySuccess = true;
-            index++;
-            playNext();
-        };
-
-        player.onerror = (e) => {
-            console.warn(`Audio playback error for ${currentUrl}, trying next...`, e);
-            if (token !== queueCancelToken) return;
-            index++;
-            playNext();
-        };
-
-        const playPromise = player.play();
-        if (playPromise !== undefined) {
-            playPromise.then(() => {
-                anySuccess = true;
-            }).catch(err => {
-                console.warn(`Audio play rejected for ${currentUrl}:`, err);
-                if (token !== queueCancelToken) return;
-                index++;
-                playNext();
-            });
+        let startTime = ctx.currentTime + 0.05;
+        buffers.forEach((buf) => {
+            const source = ctx.createBufferSource();
+            source.buffer = buf;
+            source.playbackRate.value = speed;
+            source.connect(ctx.destination);
+            source.start(startTime);
+            activeSourceNodes.push(source);
+            startTime += (buf.duration / speed);
+        });
+    } catch (err) {
+        console.warn('Web Audio playback failed, routing to speech synthesis fallback:', err);
+        if (token === currentQueueToken && fallbackText) {
+            playOfflineVoiceFallback(fallbackText);
         }
     }
-
-    // 在使用者手勢 (Click Event) 同步上下文中直接觸發 play()
-    playNext();
 }
 
 function playTaigiTTS(phraseText, audioIds) {
@@ -3118,6 +3132,10 @@ function playOfflineVoiceFallback(text) {
     if (!('speechSynthesis' in window)) return;
     
     updateBadge("local");
+    
+    if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+        window.speechSynthesis.cancel();
+    }
     
     // 同音字轉換
     let phoneticText = text;
@@ -3305,8 +3323,12 @@ function playFullJourneyAudio() {
     audioSegments.push(taigiAudioMap["箍"]);
     
     audioSegments.push(taigiAudioMap["佇"]);
-    audioSegments.push(taigiAudioMap["第"]);
-    audioSegments.push(taigiAudioMap[numberToKanjiDigit(platform)]);
+    if (platform === 1 && taigiAudioMap["第一"]) {
+        audioSegments.push(taigiAudioMap["第一"]);
+    } else {
+        audioSegments.push(taigiAudioMap["第"]);
+        audioSegments.push(taigiAudioMap[numberToKanjiDigit(platform)]);
+    }
     audioSegments.push(taigiAudioMap["月台"]);
     audioSegments.push(taigiAudioMap["等"]);
     audioSegments.push(taigiAudioMap["車"]);
